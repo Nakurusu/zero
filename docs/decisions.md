@@ -22,8 +22,8 @@
 | 1 | **D0 技术栈与数据库**（语言/框架/DB/部署） | 无（最上游） | D3 并发原语、D2 恢复与流式承载、D1/D4 持久化接口、部署形态 | 已决策 |
 | 2 | **D4 权威源分层** | D0 | D1 表设计、D3 锁基底、D8 审计存储、删除逻辑 | 已决策 |
 | 3 | **D1 轮次模型与状态机** | D4, D0 | D2 状态/部分态、D3 seq 与 running 槽、D6/D8 审计字段 | 已决策 |
-| 4 | **D2 断线语义** | D1 | D3 槽位归属与持有期、D1 部分落库/interrupted、执行器任务模型 | 讨论中 |
-| 5 | **D3 并发串行化** | D0, D1, D2 | 消息有序/不丢不重、重试幂等机制 | 待决策 |
+| 4 | **D2 断线语义** | D1 | D3 槽位归属与持有期、D1 部分落库/interrupted、执行器任务模型 | 已决策 |
+| 5 | **D3 并发串行化** | D0, D1, D2 | 消息有序/不丢不重、重试幂等机制 | 讨论中 |
 | 6 | **D-model 模型 API 供应商/模型** | 独立（集成层） | 执行器模型循环、工具协议(B7)、流式分块格式(A1)、token 计量(D8/E3) | 待决策 |
 | 7 | **D5 策略职责边界（纯规划器）** | D1 | D6 注册内容、D7 调用方、执行器契约、回退阶段(B6) | 待决策 |
 | 8 | **D6 注册表 + 版本化配置** | D5, D1 | 切换/回滚、planned vs actual 审计 | 待决策 |
@@ -415,8 +415,60 @@ PG 真实角色（不止写吞吐）：MVCC 并发写去单写者天花板 + **�
 
 ---
 
+## D2 断线语义
+
+状态：已决策（2026-11-21）
+影响需求：A1/A4、T2、G6；上游 D1；下游 D3（槽位归属与持有期）
+
+### 背景与约束
+- D1：assistant 占位行 + is_partial + UPDATE 刷盘；interrupted(reason=drain 超时/用户取消/进程回收)；禁终态复活。
+- seams：TurnRunner（detached task）、DeltaChannel（publish/subscribe offset）。
+- ②跨 worker 扇出受限（进程内队列）；③孤儿恢复（D1 lease）。
+
+### 子决策 2.1 断连行为（已定 A，2026-11-21）
+| 候选 | 机制 | 利 | 弊/后果 |
+|---|---|---|---|
+| **A 后台继续（推荐）** | 生成=detached task，SSE=订阅者；断连取消订阅不取消任务；跑完落库 completed | 贴合关页面重开+多端；T2 断言干净（completed+完整）；不浪费 token | 需任务注册表+drain+孤儿恢复（D1 已备） |
+| B 断连即取消 | 断连中止生成，标 interrupted(reason=user_disconnect)，保留部分 | 实现略简、省后续 token | 多端一端断连杀另一端观看；浪费已生成；需区分断连 vs 显式取消 |
+- **已定 A**：断连不取消生成；**实际取消需显式取消端点触发**（见 2.6）。与 D1 一致（interrupted 仅 drain/显式取消/回收）。
+
+### 子决策 2.2 部分刷盘（D1 约束）
+- 节流 UPDATE assistant 占位行 content，is_partial=true；间隔~500ms 或每 N chunk。
+- 完成：content 最终 + is_partial=false + turn completed（同事务）。
+
+### 子决策 2.3 重连视图（D1/②约束）
+- GET 历史：running 返回 partial（is_partial 打标）；completed 返回完整。
+- 可选 resume-stream 端点（P2，②跨 worker 用 DB 轮询）；Q2 重连=GET。
+
+### 子决策 2.4 完成/失败信号（A1）
+- SSE 终止事件：done（completed）/ error（failed+error_code）/ interrupted（+reason）。
+
+### 子决策 2.5 interrupted 触发（D1 已定）
+- drain 超时、用户显式取消、进程回收/重启恢复。**断连不触发（A）**。
+
+### 子决策 2.6 显式取消端点（已定，2026-11-21）
+- 端点：POST /conversations/{id}/turns/{turn_id}/cancel（仅 running 有效）。
+- 机制（跨 worker，②）：取消请求可能落到非 owning worker→**DB 写 cancel_requested 标志**；owning worker 生成循环每 chunk 间检查标志→中止→标 interrupted(reason=user_cancel)、保留 partial、释放槽。DB 中介取消，跨 worker 成立。
+- 后果：取消非即时（延迟=检查间隔）；与完成竞态→若已终态则 no-op 返回当前状态（禁终态复活 D1）；幂等；释放槽供下一轮。
+- Q2：实现该端点以支撑 interrupted(user_cancel)；T2 测断连（A 下→completed），取消端点另测。
+
+### 选定方案（已决策 2026-11-21）
+- 2.1 A 后台继续：断连取消订阅不取消任务，跑完 completed。
+- 2.2 节流 UPDATE 占位行（is_partial），完成同事务置 false+completed。
+- 2.3 重连=GET（partial 打标/完整）；resume-stream P2。
+- 2.4 SSE 终止事件 done/error/interrupted。
+- 2.5 interrupted 触发=drain 超时/显式取消/进程回收；断连不触发。
+- 2.6 显式取消端点→DB cancel_requested→owner 中止→interrupted(user_cancel)。
+
+### 放弃方案及原因
+- 2.1 B 断连即取消：多端一端断连杀另一端观看、浪费已生成、需区分断连 vs 显式取消→弃。选 A 后台继续 + 显式取消端点。
+
+### 对下游的影响
+- D3：running 槽由 detached task 持有整轮（非 HTTP 请求），断连不释放槽。
+
+---
+
 ## 其余决策（按顺序展开，届时补充完整分析）
-- **D2 断线语义**（待决策）：后台继续 vs 取消；部分回复落库；重连视图。
 - **D3 并发串行化**（待决策）：整轮串行抢槽机制、幂等键、等待/超时。
 - **D-model 模型 API**（待决策）：供应商/模型、工具协议、流式格式、token 计量。
 - **D5 策略职责边界**（待决策）：plan(PlanInput)->TurnPlan 契约、回退阶段。
