@@ -27,7 +27,7 @@
 | 6 | **D-model 模型 API 供应商/模型** | 独立（集成层） | 执行器模型循环、工具协议(B7)、流式分块格式(A1)、token 计量(D8/E3) | 已决策 |
 | 7 | **D5 策略职责边界（纯规划器）** | D1 | D6 注册内容、D7 调用方、执行器契约、回退阶段(B6) | 已决策 |
 | 8 | **D6 注册表 + 版本化配置** | D5, D1 | 切换/回滚、planned vs actual 审计 | 已决策 |
-| 9 | **D7 上下文构建器** | D5, D4 | 完整历史 vs 模型上下文分离、长对话/大材料处理(B8) | 待决策 |
+| 9 | **D7 上下文构建器** | D5, D4 | 完整历史 vs 模型上下文分离、长对话/大材料处理(B8) | 已决策 |
 | 10 | **D8 审计 schema = 评估数据源** | D1, D5, D6, 执行器 | 评估数据契约（token/耗时/工具次数/策略版本/检查项） | 已决策 |
 
 ### 依赖 rationale（为什么是这个顺序）
@@ -689,6 +689,7 @@ PG 真实角色（不止写吞吐）：MVCC 并发写去单写者天花板 + **�
 - tool_calls（append-only）：turn_id、**call_seq**、tool_name、args(JSON)、result_ref、latency_ms、was_allowed（⊆plan.allowed_tools）、created_at。
 - **call_seq 跨 model/tool 统一单调**，重建轮内交错执行顺序。
 - **plan 存文档（JSON）**：instructions+context 引用+allowed_tools+plan_schema_version+context_builder_version；**context 仍纯引用非内容**（D4.3 擦除一致；instructions 是策略产物非用户被删内容，可存）。
+- **turn_context 审计=预选+工具取回 snippet refs**（D7.3）：plan 文档存初始预选，执行中工具取回 refs 累积入 turn_context，覆盖模型实际全部上下文（审计完整）。
 - 指标分表（评估直读 SQL 汇总）；plan 整体存文档（结构灵活）。弃全 JSON blob（指标不可查询）。
 
 ### 子决策 8.2 逐轮指标聚合（E3，推荐）
@@ -745,5 +746,65 @@ PG 真实角色（不止写吞吐）：MVCC 并发写去单写者天花板 + **�
 
 ---
 
-## 其余决策（按顺序展开，届时补充完整分析）
-- **D7 上下文构建器**（待决策）：窗口/摘要/检索、上下文快照落库。
+## D7 上下文构建器
+
+状态：已决策（2026-11-21）
+影响需求：B8、E2；上游 D5/D4/D1；下游 执行器/评估
+
+### 背景与约束
+- B8 完整历史≠模型上下文；长对话/大材料处理；本轮上下文可追溯。
+- D5.3 策略.plan() 调用纯助手；D5.2 纯无 IO；D5.1 候选池 config 固定两策略同；D4.3 输出纯引用；D1.4 排除 partial；D8.1 context_builder_version。
+- Q2 最小：窗口+预置片段；摘要 P2(I5)；完整检索豁免。
+
+### 子决策 7.1 角色与接口（推荐）
+- 纯助手（strategy.plan() 内调用，无 IO）：输入 PlanInput 候选（history/learning_state/material_candidates/config）→输出 context 选择（message_ids+snippet_ids+window_params）入 TurnPlan.context。
+- executor 装载候选（DB 读）+按引用渲染实际 prompt 调模型；审计存引用（D4.3/D8.1）。
+- 机制：窗口选择/摘要(P2)/材料选择；context_builder_version 标记逻辑版本。
+
+### 子决策 7.2 窗口机制（已定 2026-11-21）
+- **token 预算 + 条数兜底**：主按 token 预算选轮，条数硬上限兜底（估算失败/安全帽）。
+- **轮为原子**：窗口在轮边界切，整轮（user+assistant 对）纳入或排除，不拆半轮；**排除 is_partial/未完成轮**（D1.4，整轮排除）。
+- **估算器全局唯一**：单一共享 token 估算器（纯函数，合 D5.2），版本固定保 E2 一致。
+- 区分：估算器 token 用于窗口预算（近似）；实际 usage.prompt_tokens 来自 API 入审计（D8），两者不混。
+- 演进：超窗旧轮→滚动摘要 digest（I5 P2）。候选池边界 config 固定两策略同（E2）。
+
+### 子决策 7.3 材料选择（已定 2026-11-21：工具为主、预选≤3、取回入审计）
+- **工具为主**（B7 反应式查询）；**预选 ≤3 条**（主动上限）；关键词/简单匹配（纯，无 IO）；演进 chunk+embed+top-k。
+- **工具取回的片段也必须写进 turn_context**（否则审计不完整）：turn_context = 预选片段 refs + 工具取回片段 refs（执行中累积），覆盖模型实际看到的全部上下文。
+- 仍纯引用（D4.3）：取回片段记 ref 非内容，删除指向空。
+- 材料候选池 config 固定两策略同（E2）。
+
+### 子决策 7.4 学习状态（推荐）
+- 上下文含 learning_state digest（进度/知识点）；Q2 预置。
+
+### 子决策 7.5 输出纯引用 + 版本（D4.3/D8.1，已定 2026-11-21）
+- 输出 message_ids+snippet_ids+window_params（引用非内容）；删除指向空。
+- **turn_context 含预选+工具取回 refs**（7.3，审计完整）；plan 文档存初始计划，turn_context 累积反应式取回。
+- context_builder_version + 估算器版本随 plan/审计落库（E2 同版本、G8 演进）。
+
+### 子决策 7.6 摘要（P2，设计）
+- 滚动摘要超窗旧轮→digest；Q2 不实现（I5）；设计喂 B8 长对话答案。
+
+### 选定方案（已决策 2026-11-21）
+- 7.1 纯助手（strategy.plan() 调用，无 IO）；executor 装载候选+按引用渲染 prompt；审计存引用。
+- 7.2 token 预算+条数兜底；轮为原子（整轮纳入/排除，排除 partial/未完成轮）；估算器全局唯一（纯、版本固定）；估算 token≠API 实际 usage。
+- 7.3 工具为主、预选≤3；工具取回片段写进 turn_context（审计完整）；纯引用。
+- 7.4 上下文含 learning_state digest（Q2 预置）。
+- 7.5 输出纯引用；turn_context=预选+取回 refs；context_builder_version+估算器版本落审计。
+- 7.6 摘要 P2（I5），仅设计喂 B8。
+
+### 放弃方案及原因
+- 7.2 仅最近 K 轮（无 token 预算）：长/短轮 token 差异大，K 固定不控预算→弃，token 预算+条数兜底。
+- 7.2 拆半轮入窗：破坏 user/assistant 对完整→弃，轮为原子。
+- 7.2 多处各自估算器：不一致破坏 E2/预算确定→弃，全局唯一。
+- 7.3 预选为主/无上限：挤占窗口、材料应反应式按需→弃，工具为主+预选≤3。
+- 7.3/7.5 审计只记预选片段：漏掉工具取回（模型实际用了）→审计不完整→弃，取回 refs 入 turn_context。
+
+### 对下游的影响
+- 执行器按引用渲染 prompt；评估同 context_builder_version+同候选池（E2）。
+- B8 长对话/大材料设计答案由 7.2/7.3/7.6 演进支撑。
+
+---
+
+## 其余决策
+（D0–D8 共 10 项全部已决策；无待决策项）
