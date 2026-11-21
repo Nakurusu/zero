@@ -26,7 +26,7 @@
 | 5 | **D3 并发串行化** | D0, D1, D2 | 消息有序/不丢不重、重试幂等机制 | 已决策 |
 | 6 | **D-model 模型 API 供应商/模型** | 独立（集成层） | 执行器模型循环、工具协议(B7)、流式分块格式(A1)、token 计量(D8/E3) | 已决策 |
 | 7 | **D5 策略职责边界（纯规划器）** | D1 | D6 注册内容、D7 调用方、执行器契约、回退阶段(B6) | 已决策 |
-| 8 | **D6 注册表 + 版本化配置** | D5, D1 | 切换/回滚、planned vs actual 审计 | 讨论中 |
+| 8 | **D6 注册表 + 版本化配置** | D5, D1 | 切换/回滚、planned vs actual 审计 | 已决策 |
 | 9 | **D7 上下文构建器** | D5, D4 | 完整历史 vs 模型上下文分离、长对话/大材料处理(B8) | 待决策 |
 | 10 | **D8 审计 schema = 评估数据源** | D1, D5, D6, 执行器 | 评估数据契约（token/耗时/工具次数/策略版本/检查项） | 待决策 |
 
@@ -622,7 +622,57 @@ PG 真实角色（不止写吞吐）：MVCC 并发写去单写者天花板 + **�
 
 ---
 
+## D6 注册表 + 版本化配置
+
+状态：已决策（2026-11-21）
+影响需求：B4/B5/B6/G7、A6；上游 D5/D1；下游 D7/执行器/评估
+
+### 背景与约束
+- B4 配置/注册切换，新增策略不改存储/HTTP/执行器。B5 版本管理+回滚。B6 默认回退+planned/actual。G7 实验分配（设计 P0/实现 P2）。
+- D5 registry name→version→factory；StrategyConfig 窄化；候选池 config 固定两策略同。
+
+### 子决策 6.1 注册表（推荐）
+- name → {version → factory}；装饰器/entry 注册；旧版本保留（回滚）。
+- 新增策略=实现接口+注册一行（B4）。
+
+### 子决策 6.2 配置源与切换（推荐）
+- 每对话 strategy(name,version) 存 conversations（创建/API 设定）；全局默认 config（默认策略+StrategyConfig+候选池边界）。
+- 切换=改对话配置或全局默认；评估两策略=两独立对话各设策略（E2）。
+- StrategyConfig/候选池边界来自配置，两策略一致（D5/E2）。
+
+### 子决策 6.3 版本回滚（B5，推荐）
+- 配置指向 (name,version)；回滚=改配置指旧版本（旧版本仍注册），无需发版。
+- plan_schema_version 兼容校验（D5/G8）。
+
+### 子决策 6.4 planned vs actual（推荐）
+- planned=turn 开始从配置/分配解析的策略+version；actual=回退后实际；都落审计+fallback_reason 枚举。
+
+### 子决策 6.5 默认策略（已定 explain-first，2026-11-21）
+- default = **explain-first**（注册 name+version）；config 指定默认；B6 回退兜底用它。
+
+### 子决策 6.6 实验分配（G7，设计 P0/实现 P2）
+- 独立分配模块：stable hash(experiment_id, conversation_id/user_id)→bucket→策略；分配结果写对话；追踪实际策略。
+- 稳定分组：同 conversation/user 在同实验恒同桶。Q2 实现 P2（per-conversation 显式配置已够评估）。
+
+### 选定方案（已决策 2026-11-21）
+- 6.1 注册表 name→{version→factory}，旧版本保留；新增策略=接口+注册一行（B4）。
+- 6.2 每对话 strategy(name,version) 存 conversations + 全局默认 config（默认策略+StrategyConfig+候选池边界，两策略一致）。
+- 6.3 回滚=改配置指旧版本（旧版本仍注册），无需发版；plan_schema_version 兼容校验。
+- 6.4 planned（配置/分配解析）+actual（回退后）都落审计+fallback_reason 枚举。
+- 6.5 default=explain-first。
+- 6.6 实验分配：设计 P0（稳定哈希分组+分配写对话+追踪实际），实现 P2（Q2 per-conversation 显式配置够评估）。
+
+### 放弃方案及原因
+- 6.5 practice-first 作默认：explain-first 是更稳妥的通用教学兜底→默认选 explain-first，practice-first 作对比策略。
+- 6.6 Q2 实现稳定分组：非最小服务必需、per-conversation 配置已够评估→实现 P2，仅设计。
+- 回滚需发版/删旧版本：旧版本保留+配置指向即可回滚→弃发版式回滚。
+
+### 对下游的影响
+- 执行器：turn 开始解析 planned→plan→回退→actual 落审计。
+- 评估：两独立对话各设策略，单配置源同模型/params/候选池（E2）。
+
+---
+
 ## 其余决策（按顺序展开，届时补充完整分析）
-- **D6 注册表+版本化配置**（待决策）：name→version→factory、配置切换/回滚、planned vs actual。
 - **D7 上下文构建器**（待决策）：窗口/摘要/检索、上下文快照落库。
 - **D8 审计 schema=评估数据源**（待决策）：模型/工具调用记录字段、run_id、检查项汇总。
