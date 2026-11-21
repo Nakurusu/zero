@@ -23,8 +23,8 @@
 | 2 | **D4 权威源分层** | D0 | D1 表设计、D3 锁基底、D8 审计存储、删除逻辑 | 已决策 |
 | 3 | **D1 轮次模型与状态机** | D4, D0 | D2 状态/部分态、D3 seq 与 running 槽、D6/D8 审计字段 | 已决策 |
 | 4 | **D2 断线语义** | D1 | D3 槽位归属与持有期、D1 部分落库/interrupted、执行器任务模型 | 已决策 |
-| 5 | **D3 并发串行化** | D0, D1, D2 | 消息有序/不丢不重、重试幂等机制 | 讨论中 |
-| 6 | **D-model 模型 API 供应商/模型** | 独立（集成层） | 执行器模型循环、工具协议(B7)、流式分块格式(A1)、token 计量(D8/E3) | 待决策 |
+| 5 | **D3 并发串行化** | D0, D1, D2 | 消息有序/不丢不重、重试幂等机制 | 已决策 |
+| 6 | **D-model 模型 API 供应商/模型** | 独立（集成层） | 执行器模型循环、工具协议(B7)、流式分块格式(A1)、token 计量(D8/E3) | 讨论中 |
 | 7 | **D5 策略职责边界（纯规划器）** | D1 | D6 注册内容、D7 调用方、执行器契约、回退阶段(B6) | 待决策 |
 | 8 | **D6 注册表 + 版本化配置** | D5, D1 | 切换/回滚、planned vs actual 审计 | 待决策 |
 | 9 | **D7 上下文构建器** | D5, D4 | 完整历史 vs 模型上下文分离、长对话/大材料处理(B8) | 待决策 |
@@ -468,8 +468,53 @@ PG 真实角色（不止写吞吐）：MVCC 并发写去单写者天花板 + **�
 
 ---
 
+## D3 并发串行化
+
+状态：已决策（2026-11-21）
+影响需求：C1/C2、T3；上游 D0/D1/D2；下游 —
+
+### 背景与约束
+- D0 SQLite WAL + gunicorn 多 worker；D1 抢槽同事务建 user+assistant 占位+seq、lease；D2 槽由 detached task 持有整轮。
+
+### 子决策 3.1 串行化机制（D0/D1 约束，推荐）
+- 每对话整轮串行：部分唯一索引 turns(conversation_id) WHERE status='running' → 每对话至多一个 running。
+- 抢槽=原子 INSERT turn(running)（短事务）；**同事务建 user msg + assistant 占位 + 分配 turn_seq/msg_seq**（D1 1.4）。
+- 冲突→等待（3.2）；完成/中断/回收改终态释放槽。
+- 跨进程：SQLite WAL 写串行 + busy_timeout 保证 INSERT 原子；部分唯一索引兜底。
+- **先抢槽再落库 user msg**（seq 顺序=执行顺序，成对不交错 T3）。
+
+### 子决策 3.2 等待/超时（已定 A，2026-11-21）
+| 候选 | 机制 | 利 | 弊 |
+|---|---|---|---|
+| **A 轮询等待+超时拒绝（推荐）** | 冲突→poll slot(~150ms)直到空或超时→超时 **409 Conflict**(conversation_busy)+Retry-After | 简单、有界等待 | 超时拒绝需客户端重试 |
+| B 无限等待 | poll 直到空 | 不拒绝 | 长轮堆积、请求挂死 |
+| C 排队事件 | SSE 先发 queued 后台排队 | UX 好 | 复杂 |
+- 推荐 A：poll~150ms，超时~30-60s→**409**，客户端重试（client_msg_id 幂等保不重）。
+- **状态码语义（503 不合适，用户质疑成立）**：503=服务器整体不可用/过载（全局），此处是单对话锁竞争、服务器健康→范畴错误；误用触发 LB 健康检查/熔断/监控告警/重试风暴，把健康 per-conversation 忙当服务宕机。**409 Conflict**=资源当前状态冲突（有 running turn），配 error_code=conversation_busy+Retry-After，幂等重试。423 Locked 更字面但 WebDAV obscure；429 速率配额语义不符；408 等客户端超时方向反。
+
+### 子决策 3.3 幂等（D1 约束）
+- UNIQUE(conversation_id, client_msg_id)：重试同 client_msg_id→返回已有 turn，不新建。
+
+### 子决策 3.4 槽与 lease（D1 约束）
+- 槽=status running 行；lease 过期/owner 死→恢复标终态释放槽（D1 1.5）。
+
+### 选定方案（已决策 2026-11-21）
+- 3.1 每对话整轮串行：部分唯一索引 running 槽；抢槽短事务同建 user+assistant 占位+seq；先抢槽再落库 user msg；WAL+busy_timeout 跨进程原子。
+- 3.2 A 轮询等待+超时拒绝：poll~150ms，超时~30-60s→409 Conflict(conversation_busy)+Retry-After，幂等重试。
+- 3.3 幂等：UNIQUE(conversation_id,client_msg_id)，重试返回已有 turn。
+- 3.4 槽=running 行；lease 过期/owner 死→恢复标终态释放槽。
+
+### 放弃方案及原因
+- 3.2 B 无限等待：长轮堆积、请求挂死→弃。
+- 3.2 C 排队事件：UX 好但复杂，Q2 过度→弃。
+- 3.2 拒绝码 503：服务器整体不可用语义，此处单对话锁竞争服务器健康→范畴错误（触发 LB/熔断/告警/重试风暴）→弃，用 409。423 WebDAV obscure、429 速率配额、408 方向反→均弃。
+
+### 对下游的影响
+- 执行器：抢槽事务边界（短事务，生成在事务外）；T3 两进程/两连接验证。
+
+---
+
 ## 其余决策（按顺序展开，届时补充完整分析）
-- **D3 并发串行化**（待决策）：整轮串行抢槽机制、幂等键、等待/超时。
 - **D-model 模型 API**（待决策）：供应商/模型、工具协议、流式格式、token 计量。
 - **D5 策略职责边界**（待决策）：plan(PlanInput)->TurnPlan 契约、回退阶段。
 - **D6 注册表+版本化配置**（待决策）：name→version→factory、配置切换/回滚、planned vs actual。
