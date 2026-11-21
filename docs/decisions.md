@@ -28,7 +28,7 @@
 | 7 | **D5 策略职责边界（纯规划器）** | D1 | D6 注册内容、D7 调用方、执行器契约、回退阶段(B6) | 已决策 |
 | 8 | **D6 注册表 + 版本化配置** | D5, D1 | 切换/回滚、planned vs actual 审计 | 已决策 |
 | 9 | **D7 上下文构建器** | D5, D4 | 完整历史 vs 模型上下文分离、长对话/大材料处理(B8) | 待决策 |
-| 10 | **D8 审计 schema = 评估数据源** | D1, D5, D6, 执行器 | 评估数据契约（token/耗时/工具次数/策略版本/检查项） | 待决策 |
+| 10 | **D8 审计 schema = 评估数据源** | D1, D5, D6, 执行器 | 评估数据契约（token/耗时/工具次数/策略版本/检查项） | 已决策 |
 
 ### 依赖 rationale（为什么是这个顺序）
 
@@ -387,7 +387,7 @@ PG 真实角色（不止写吞吐）：MVCC 并发写去单写者天花板 + **�
 
 ### 子决策 1.5 owner/租约与恢复（已定 甲，2026-11-21）
 - 选 **甲 lease/heartbeat**：turns.owner_worker + lease_expires_at；worker_liveness 心跳续租。
-- 启动恢复：扫 running，**租约过期/owner 已死**→标 interrupted(reason=process_restart) 或 failed、保留部分（is_partial 行）、释放槽；owner 活着不动（滚动重启不误杀兄弟）。
+- 启动恢复（**instance UUID + 心跳新鲜度，不用 pid**，详见 D8.7）：扫 running，回收 owner instance 心跳过期（now-last_heartbeat>新鲜度 TTL）者→标 interrupted(reason=process_restart)、保留部分（is_partial 行）、释放槽。全量重启=所有旧 instance 心跳过期→全回收；滚动重启=仅被重启 instance 过期，兄弟心跳新鲜不动。检测延迟≤TTL（T1 测试计及）。
 - 乙 pid 简化弃（pid 复用风险、跨机不适用）。
 
 ### 子决策 1.6 幂等（推荐）
@@ -673,6 +673,77 @@ PG 真实角色（不止写吞吐）：MVCC 并发写去单写者天花板 + **�
 
 ---
 
+## D8 审计 schema = 评估数据源
+
+状态：已决策（2026-11-21）
+影响需求：A6/A2、E3/E4/E5/E6、T4/T5；上游 D1/D5/D6/D4.3；下游 评估/读 API
+（D7 上下文构建器机制仍待决策；D8 上下文引用按 D4.3 纯引用先行定义）
+
+### 背景与约束
+- A6 每轮 planned/actual+fallback+status；E3 逐轮执行信息+资源性能+行为检查；E6 run_id 区分两跑；D5.4 planned/actual+fallback_reason 枚举+plan_schema_version；D4.3 引用非内容；D1.4 审计只记最终。
+- 闭合缺口1（读 API 审计暴露）+缺口2（重启恢复确定性，D1.5 细化）。
+
+### 子决策 8.1 审计存储结构（已定 2026-11-21：分表 + plan 文档）
+- turns（可变状态+审计摘要）：planned/actual_strategy+version、fallback_reason 枚举、plan_schema_version、context_builder_version、status、error_code/interrupt_reason、owner_instance/lease、started/finished_at。
+- model_calls（append-only）：turn_id、**call_seq**、model_id、params(JSON)、input_tokens、output_tokens、latency_ms、created_at。
+- tool_calls（append-only）：turn_id、**call_seq**、tool_name、args(JSON)、result_ref、latency_ms、was_allowed（⊆plan.allowed_tools）、created_at。
+- **call_seq 跨 model/tool 统一单调**，重建轮内交错执行顺序。
+- **plan 存文档（JSON）**：instructions+context 引用+allowed_tools+plan_schema_version+context_builder_version；**context 仍纯引用非内容**（D4.3 擦除一致；instructions 是策略产物非用户被删内容，可存）。
+- 指标分表（评估直读 SQL 汇总）；plan 整体存文档（结构灵活）。弃全 JSON blob（指标不可查询）。
+
+### 子决策 8.2 逐轮指标聚合（E3，推荐）
+- input/output_tokens=Σ model_calls；latency=finished-started（或 Σ model latency）；tool_count=count tool_calls。
+- 执行信息：case_id/turn_index/model_id/params/strategy_version 随 turn/run 记录。
+
+### 子决策 8.3 run_id 与评估标记（E6，推荐）
+- eval_runs(run_id, seed_manifest_hash, model_id, params, strategy_versions, started_at)。
+- conversation/turn 标记 eval_run_id+case_id+turn_index。
+- 两跑同 seed_manifest_hash 证同种子；run_id 区分；单配置源同 model/params（D-model）。
+
+### 子决策 8.4 行为检查（E4，已定 2026-11-21：可检验行为做成工具调用）
+- **可检验行为做成工具调用**：ask_question / provide_explanation / judge_answer 等行为工具注册；策略指令模型发出→行为成为结构化 tool_call 记录，而非自由文本启发式。
+- 检查项版本化于 eval config；结果存 eval_check_results(run_id, case_id, turn_index, check_name, passed, detail)。
+- 自动检查断言 tool_calls：practice-first 首轮含 ask_question；judge_answer(wrong) 后含 provide_explanation；was_allowed 全 true（只调允许工具）；explain-first 先讲解后练习（工具顺序）。
+- 后果：工具集超出 B7 最小材料查询（含行为工具）；策略指令须引导模型调用（影响 D5.5）；依赖模型遵循指令；质量类检查仍启发式/LLM judge P2。
+
+### 子决策 8.5 读 API 审计暴露（闭合缺口1，已定 2026-11-21：messages+turns 两块）
+- GET /conversations/{id}/messages 响应拆两块：**messages**［turn_id, msg_seq, role, content, is_partial］+ **turns**［turn_id, status, planned/actual_strategy+version, fallback_reason, error_code/interrupt_reason, 指标］。客户端按 turn_id 关联。
+- 分页：messages 分页；turns 块覆盖所返回消息涉及的轮次（支持读完整历史 A2）。
+- 可选 GET …/turns/{turn_id}：完整审计（model_calls/tool_calls/plan 文档/指标）。
+- T4 读 turns 块验证 planned/actual/fallback；A2 执行状态明确。
+
+### 子决策 8.6 审计只记最终（D1.4）
+- assistant 最终版入 messages（is_partial=false）；partial 不入 append-only 审计。
+- model_calls/tool_calls 是执行事件随发生追加；turn 终态写审计摘要+最终指标；中断轮次保留已发生事件+interrupted 状态。
+
+### 子决策 8.7 重启恢复确定性（闭合缺口2，已定 2026-11-21：instance UUID + 心跳新鲜度，不用 pid）
+- 每 worker 实例一个 **instance UUID**，心跳写 worker_liveness(instance_uuid, last_heartbeat)。**不用 pid**（避 pid 复用/OS 脆弱）。
+- 回收 running 轮次其 owner instance 心跳过期（now-last_heartbeat>新鲜度 TTL）。
+- **全量 vs 滚动由哪些 owner 心跳过期区分**：全量重启=所有旧 instance 过期→全回收；滚动重启=仅被重启 instance 过期，兄弟新鲜不动。
+- 后果：检测延迟≤TTL（T1 测试计及/短 TTL）；instance UUID 稳定身份无 pid 复用问题；跨机适用（UUID 全局唯一）。
+
+### 选定方案（已决策 2026-11-21）
+- 8.1 分表（turns/model_calls/tool_calls）+ plan 存文档（context 纯引用）；call_seq 跨 model/tool 统一；context_builder_version。
+- 8.2 指标聚合：token=Σmodel_calls、latency=起止差、tool_count=count。
+- 8.3 eval_runs(run_id, seed_manifest_hash, model_id, params, strategy_versions)+turn 标记 run_id/case_id/turn_index。
+- 8.4 可检验行为做成工具调用（ask_question/provide_explanation/judge_answer）；检查断言 tool_calls；eval_check_results 版本化。
+- 8.5 GET 响应 messages+turns 两块；可选 turn 详情端点。
+- 8.6 审计只记最终；model/tool 事件随发生追加。
+- 8.7 instance UUID+心跳新鲜度区分全量/滚动重启，不用 pid。
+
+### 放弃方案及原因
+- 8.1 全 JSON blob：指标不可查询/汇总难→弃，指标分表+plan 文档。
+- 8.1 plan 内联 context 内容：违反 D4.3 擦除→弃，plan 文档 context 仍纯引用。
+- 8.4 自由文本启发式判行为：不可靠/不可机器确定→弃，可检验行为做成工具调用（结构化断言）；质量类仍启发式/LLM P2。
+- 8.5 audit 内嵌每条消息：冗余/耦合→弃，messages+turns 两块按 turn_id 关联。
+- 8.7 pid+start_time 判 owner：pid 复用风险/OS 脆弱/跨机不适用→弃，instance UUID+心跳新鲜度。
+
+### 对下游的影响
+- 评估脚本直读 model_calls/tool_calls/turns/eval_check_results 生成逐轮记录+对比表（E5）。
+- 读 API 契约（8.5）闭合 T4/A2；恢复确定性（8.7）闭合 T1。
+- **ripple**：8.4 行为工具→D5.5 两策略 allowed_tools/指令 + B7 工具集（含行为工具）；context_builder_version→D7 上下文构建器版本化。
+
+---
+
 ## 其余决策（按顺序展开，届时补充完整分析）
 - **D7 上下文构建器**（待决策）：窗口/摘要/检索、上下文快照落库。
-- **D8 审计 schema=评估数据源**（待决策）：模型/工具调用记录字段、run_id、检查项汇总。
