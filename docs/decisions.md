@@ -20,8 +20,8 @@
 | 顺序 | 决策 | 上游依赖 | 约束的下游 | 状态 |
 |---|---|---|---|---|
 | 1 | **D0 技术栈与数据库**（语言/框架/DB/部署） | 无（最上游） | D3 并发原语、D2 恢复与流式承载、D1/D4 持久化接口、部署形态 | 已决策 |
-| 2 | **D4 权威源分层** | D0 | D1 表设计、D3 锁基底、D8 审计存储、删除逻辑 | 讨论中 |
-| 3 | **D1 轮次模型与状态机** | D4, D0 | D2 状态/部分态、D3 seq 与 running 槽、D6/D8 审计字段 | 待决策 |
+| 2 | **D4 权威源分层** | D0 | D1 表设计、D3 锁基底、D8 审计存储、删除逻辑 | 已决策 |
+| 3 | **D1 轮次模型与状态机** | D4, D0 | D2 状态/部分态、D3 seq 与 running 槽、D6/D8 审计字段 | 讨论中 |
 | 4 | **D2 断线语义** | D1 | D3 槽位归属与持有期、D1 部分落库/interrupted、执行器任务模型 | 待决策 |
 | 5 | **D3 并发串行化** | D0, D1, D2 | 消息有序/不丢不重、重试幂等机制 | 待决策 |
 | 6 | **D-model 模型 API 供应商/模型** | 独立（集成层） | 执行器模型循环、工具协议(B7)、流式分块格式(A1)、token 计量(D8/E3) | 待决策 |
@@ -245,9 +245,109 @@ PG 真实角色（不止写吞吐）：MVCC 并发写去单写者天花板 + **�
 
 ---
 
-## 其余决策（按顺序展开，届时补充完整分析）
+## D4 权威源分层
 
-- **D4 权威源分层**（待决策）：DB 权威范围、材料原文/派生分层、Q2 预置片段存放。
+状态：已决策（2026-11-21）
+影响需求：A3/B8/G2/G4/G5、C4、D8；上游 D0；下游 D1/D3/D7/D8
+
+### 背景与约束
+- Q1 Q2 要求四类数据各自权威源：①原始材料及解析/检索产物 ②对话消息与轮次状态 ③学习进度/答题记录 ④每轮上下文/策略版本/执行记录。
+- C4：DB 为权威，进程内不持权威状态。完整历史 ≠ 模型上下文。Q2 预置材料片段、不做上传解析。
+- seams 约束：Repo 接口（SQLite→PG）、上下文/plan 可序列化。
+
+### 子决策 4.1 权威模型（已定 C + append-only 方向，scope 待确认）
+| 候选 | 机制 | 利 | 弊/后果 |
+|---|---|---|---|
+| A 状态表权威 | messages/turns/learning_state 为当前态权威；audit 追加 | 读直接、简单、Q2 友好 | 历史变更需额外审计承载 |
+| B 事件溯源 | 追加事件日志为权威，当前态=投影 | 可回放/审计强 | 投影/回放/一致性复杂，Q2 过度 |
+| **C 混合（选定基础）** | 当前态用状态表；audit/答题记录追加只读；学习状态由事件更新 | 兼顾直读与可追溯 | 学习状态更新须与答题记录事务一致 |
+- 用户追加约束：在 C 基础上**禁止 UPDATE/DELETE，只 append-only**（immutability 原则）。
+- **真实张力**：与 D1 轮次状态机（status 是 UPDATE）、D3 running 槽（部分唯一索引依赖改 status）、部分回复刷盘（UPDATE content）冲突；no-delete 与擦除冲突（物理不删⇒擦除靠 crypto-shred+tombstone）。
+- 调和：权威业务记录 append-only（turn_events/message_deltas/answer_events/audit/materials）；当前态=派生投影（最新事件/聚合，可重建非权威）；running-slot 锁=可变协调（非业务数据，豁免）；擦除=append tombstone+crypto-shred。
+- **实质漂向 B（事件溯源）**：权威=append-only 日志，状态表降为派生投影；代价=投影/派生逻辑+更多行+复杂度↑。
+- **scope 已定：乙（分层），2026-11-21**。 framing：这不是"为工期妥协"，而是**界定 append-only 的适用范围**——append-only 适用于天然不可变记录（audit/materials/answer_events）；messages/turns/learning_state 用可变状态表（C 原样，D1/D3 简单）；全量 append-only 作演进。
+- 甲（Q2 全量 append-only/事件溯源）已在 4.1 因投影复杂度对 Q2 过度被否；再选甲等于把否掉的方案请回来，决策不一致→维持否。
+- 乙后果：D1 轮次 status 可 UPDATE、D3 running 槽部分唯一索引按原设计成立、部分回复可 UPDATE 刷盘；擦除对可变状态表可物理删（Q2），材料/审计走 crypto-shred+tombstone。
+
+### 子决策 4.2 四类数据权威与存放（推荐）
+| 数据类 | 权威 | 派生/瞬态 | Q2 落地 | 设计演进 |
+|---|---|---|---|---|
+| 原始材料 | 原文文件（磁盘/对象存储） | — | 预置片段存 DB（material_snippets）为权威 | 对象存储 |
+| 解析/检索产物 | 派生（可由原文重建） | 分块/嵌入/索引 | 无解析，预置片段 | chunk+向量索引流水线 |
+| 消息+轮次状态 | DB（messages/turns） | 内存流缓冲瞬态（节流刷盘） | DB | PG |
+| 学习进度/答题 | DB（learning_state/answer_records） | — | DB 预置+可选更新 | 事件投影 |
+| 每轮上下文/策略/执行 | DB（turn 审计） | — | plan 引用+快照、planned/actual、model/tool calls | — |
+
+### 子决策 4.3 上下文记录方式（已定 B：纯引用，2026-11-21）
+| 候选 | 利 | 弊/后果 |
+|---|---|---|
+| A 全量渲染快照 | 精确可复现 | 体积大；**删除后仍保留被删内容→违反擦除** |
+| **B 引用（选定）**：message_ids+snippet_ids+plan_version+窗口参数 | 紧凑；**删除后引用解析为空/tombstone，内容不可复现→符合擦除权** | 删除后该轮上下文不再可复现（期望行为） |
+| C 混合（引用+hash+关键 inline） | 删除后关键内容存活 | **inline 保留用户明确要求删除的内容→违反擦除语义，弃** |
+- 用户裁决：删除就应让内容指向为空，用户明确要求删除的内容不应可复现→选 B，弃 A/C。
+- 机制：audit 只存引用 ID+metadata（策略版本/token/检查）；删除→源内容移除→引用解析为空/tombstone（优雅处理不报错）。
+- 后果（完备）：删除后上下文不可复现（复现性让位擦除权）；评估用活数据不受影响；需优雅处理悬空引用。喂 G5/D1/D8。
+
+### 子决策 4.4 Q2 预置材料存放（已定 C + 内容 hash insert-or-ignore + seed_manifest_hash，2026-11-21）
+| 候选 | 利 | 弊 |
+|---|---|---|
+| A DB rows | SQL 工具可查、事务、Repo 一致 | 种子需脚本 |
+| B JSON 文件 | 版本化固定用例简单 | 工具读文件不走 Repo、无 SQL 查询 |
+| **C JSON 种子→初始化载入 DB（选定）** | 版本化 fixture（E1/E2 复现）+ DB 运行时查询 | 初始化载入步骤 |
+- 用户细化：按**内容 hash 做 insert-or-ignore**（非 update，与 4.1 append-only 一致）→重复跑不插重复行（E6 幂等 seeding）。
+- **seed_manifest_hash 记元数据表**：E2 控制变量凭据，证明两跑同种子。manifest=预置材料 HMAC ID 集合+用例定义+初始数据版本，规范化排序+canonical 序列化后哈希（确定性）；seed 用固定 HMAC key 保证 ID/hash 跨跑稳定；模型/参数/策略版本另按 run 记录。
+
+### 子决策 4.5 材料存储：内容寻址 + 不可变桶 + 信封加密（已定 (a)，2026-11-21）
+- 用户决策：内容寻址 hash 为 key + 不可变桶；调和取 **(a) 加密粉碎**，细化为：
+  - **per-user KEK + per-object DEK（信封加密）**：DEK 加密对象，KEK 包裹 DEK，KEK 在 KMS。
+  - **内容 ID 用 HMAC（per-user key）而非裸 SHA**：防跨用户指纹关联/存在性泄露；去重退化为用户内。
+  - **删除 = 销毁 KEK + 消息侧 tombstone**（存储层密文不可读 + 应用层引用返回空，双层擦除）。
+- CAS 价值：更新生成新 HMAC ID、旧对象不变→历史引用恒指向当时确切字节；用户内去重；防篡改。
+- 不可变桶价值：WORM/object-lock 对象不被改写/删除→引用恒可解析。
+- **必须写明的后果**：
+  - KMS 在每次读关键路径（unwrap DEK+解密）→缓存 unwrapped DEK（短 TTL）。
+  - 缓存 vs 擦除即时性：缓存 DEK 在 KEK 销毁后仍可解密至 TTL→**短 TTL + 擦除时主动 purge 该用户缓存 DEK**。
+  - KMS 降级 **fail-closed**：未缓存读拒绝/工具返回 unavailable，轮次优雅降级；**不 fail-open**（过期密钥会解密已擦除内容）。
+  - **KEK 粒度 vs G5 granular 删除**：销毁 KEK=整用户擦除；G5 单对话/话题删除=**销毁相关对象 DEK**（per-object 粒度）；KEK 仅整用户。
+  - 共享材料：材料属话题可被多对话引用；删对话=tombstone 其消息/审计引用，不动共享话题材料；删话题才销毁话题材料 DEK。
+  - HMAC key per-user，擦除时一并销毁；seed 用固定 key。
+  - 不可逆 guardrail：销毁需授权+审计；误销毁=永久损失（宽限期 vs 即时擦除权衡）。
+- Q2 简化：预置片段存 DB、ID=HMAC 内容 ID、append-only insert-or-ignore、可物理删；不引真实 KMS/对象存储；信封加密+不可变桶+加密粉碎是迁对象存储的生产设计。
+- 检索：初期关键词查预置片段；演进向量索引。
+- **已确认（2026-11-21）**：KEK 粒度调和（对话/话题删除用 per-object DEK 销毁、KEK 仅整用户）+ KMS 降级 fail-closed + 擦除缓存失效。用户补两前提：
+  - **前提 A：wrapped DEK 存独立可删 key store，不内联进不可变对象元数据**（否则对象不可变连 DEK 锁死、备份删不净）。不可变桶只存密文。
+    - critical 补充：整用户擦除（毁 KEK）备份天然无害；**granular 擦除（删 wrapped DEK 记录、KEK 仍活）若 key store 备份保留 wrapped DEK 则可恢复→不干净**。故 DEK 也做 **KMS 托管密钥**，granular 擦除=KMS 调度销毁 DEK，备份失效；KEK/DEK 统一 KMS 销毁机制。代价=per-object KMS 密钥数/成本/配额。（或要求 key store 备份可 purge，运维更难。）
+  - **前提 B：擦除缓存失效全集群生效，用 per-user key_epoch 自增让旧缓存自然失效，不只清本进程**。
+    - 机制：缓存条目带 (DEK, epoch_at_cache)；读时比对共享存储当前 epoch，不一致→失效→重取（已毁则失败）→fail-closed。epoch 在共享权威存储单调自增，全集群可见。状态式收敛优于 pub/sub 广播（广播会漏）。
+    - 后果：擦除延迟由 epoch 检查新鲜度界定（建议读穿透/极短 TTL）；per-user epoch 偏粗（granular 擦除过度失效该用户全部缓存，安全但性能代价，可 per-conversation epoch 细化）；epoch 自增原子+持久，先增 epoch+毁密钥再确认擦除；读路径多一次共享 epoch 读（比 KMS 便宜）；50× 多节点同样适用。
+
+### 推荐汇总
+混合权威（状态表+追加审计）；DB 为对话/状态/审计权威；原文权威+派生可重建；上下文=纯引用（删除指向空，4.3=B）；材料=内容寻址 hash+不可变桶（4.5，调和待定）；Q2 预置=JSON 种子→DB；演进=对象存储+向量索引。
+
+### 选定方案（已决策 2026-11-21）
+- 4.1 权威模型：**C 混合 + append-only 分层（乙）**——audit/materials/answer_events append-only；messages/turns/learning_state 可变状态表；全量 append-only 作演进。界定适用范围，非工期妥协。
+- 4.2 分层：DB 为对话/状态/审计权威；原文权威+派生可重建（采纳）。
+- 4.3 上下文记录：**B 纯引用**（删除指向空/tombstone、内容不可复现）。
+- 4.4 Q2 预置：**C JSON 种子→DB + 内容 hash insert-or-ignore + seed_manifest_hash**（E2 凭据）。
+- 4.5 材料存储：**内容寻址 HMAC + 不可变桶 + (a) 信封加密粉碎**（per-user KEK/per-object DEK 均 KMS 托管；删除=KMS 销毁 KEK/DEK+消息 tombstone；wrapped DEK 独立可删 key store；per-user key_epoch 全集群缓存失效；fail-closed 降级）。
+
+### 放弃方案及原因
+- 4.1 甲（全量 append-only/事件溯源）：投影/派生复杂度对 Q2 过度→否；选乙是界定 append-only 适用范围，非妥协，维持对甲的否。
+- 4.3 A 全量快照 / C 混合 inline：删除后仍保留用户明确要求删除的内容，违反擦除语义/隐私→弃。选 B 纯引用。
+- 4.5 (b) governance：擦除依赖特权流程、治理复杂→弃；(c) 版本化+删除标记：版本保留与擦除平衡复杂、真擦除仍需特权 purge→弃。选 (a) 信封加密粉碎（不可变+擦除两全）。
+- 4.5 裸 SHA 内容 ID：跨用户指纹关联/存在性泄露→弃，改 per-user HMAC。
+- 4.5 DEK 内联不可变元数据：对象不可变锁死 DEK、备份删不净→弃，独立可删 key store + KMS 托管。
+- 4.5 仅清本进程缓存：多 worker/节点擦除不即时→弃，per-user key_epoch 全集群收敛失效。
+
+### 对下游的影响
+- D1：状态表 schema（messages/turns/learning_state/answer_records/audit）+ owner/租约字段。
+- D3：锁基底=DB 状态表。
+- D7：上下文构建器输出引用+快照（4.3）。
+- D8：审计=追加只读记录，评估直读。
+
+---
+
+## 其余决策（按顺序展开，届时补充完整分析）
 - **D1 轮次模型与状态机**（待决策）：turns/messages/执行记录表、状态机、seq 分配、重启恢复。
 - **D2 断线语义**（待决策）：后台继续 vs 取消；部分回复落库；重连视图。
 - **D3 并发串行化**（待决策）：整轮串行抢槽机制、幂等键、等待/超时。
