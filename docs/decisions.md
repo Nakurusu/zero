@@ -21,8 +21,8 @@
 |---|---|---|---|---|
 | 1 | **D0 技术栈与数据库**（语言/框架/DB/部署） | 无（最上游） | D3 并发原语、D2 恢复与流式承载、D1/D4 持久化接口、部署形态 | 已决策 |
 | 2 | **D4 权威源分层** | D0 | D1 表设计、D3 锁基底、D8 审计存储、删除逻辑 | 已决策 |
-| 3 | **D1 轮次模型与状态机** | D4, D0 | D2 状态/部分态、D3 seq 与 running 槽、D6/D8 审计字段 | 讨论中 |
-| 4 | **D2 断线语义** | D1 | D3 槽位归属与持有期、D1 部分落库/interrupted、执行器任务模型 | 待决策 |
+| 3 | **D1 轮次模型与状态机** | D4, D0 | D2 状态/部分态、D3 seq 与 running 槽、D6/D8 审计字段 | 已决策 |
+| 4 | **D2 断线语义** | D1 | D3 槽位归属与持有期、D1 部分落库/interrupted、执行器任务模型 | 讨论中 |
 | 5 | **D3 并发串行化** | D0, D1, D2 | 消息有序/不丢不重、重试幂等机制 | 待决策 |
 | 6 | **D-model 模型 API 供应商/模型** | 独立（集成层） | 执行器模型循环、工具协议(B7)、流式分块格式(A1)、token 计量(D8/E3) | 待决策 |
 | 7 | **D5 策略职责边界（纯规划器）** | D1 | D6 注册内容、D7 调用方、执行器契约、回退阶段(B6) | 待决策 |
@@ -347,8 +347,75 @@ PG 真实角色（不止写吞吐）：MVCC 并发写去单写者天花板 + **�
 
 ---
 
+## D1 轮次模型与状态机
+
+状态：已决策（2026-11-21）
+影响需求：A5/A6/A2/A3、C1/C3、T1/T3；上游 D4(乙)/D0；下游 D2/D3/D6/D8
+
+### 背景与约束
+- D4 乙：messages/turns/learning_state 可变状态表（status 可 UPDATE、部分可刷盘）；audit/materials/answer_events append-only。
+- D0：SQLite WAL + gunicorn 多 worker；seams：owner/租约、写入幂等、plan 可序列化。
+- ③ owner 感知恢复（gunicorn 滚动重启必需）；A5 轮次一等实体；A2 历史确定顺序+轮次状态。
+
+### 子决策 1.1 实体模型（推荐）
+- conversations(id, topic_id, user_id, strategy_name/version, created_at)
+- turns(id, conversation_id, turn_seq, status, planned_strategy/version, actual_strategy/version, fallback_reason, owner_worker, lease_expires_at, client_msg_id, parent_turn_id, error_code, interrupt_reason, started_at, finished_at)
+- messages(id, conversation_id, turn_id, role, content, msg_seq, is_partial, created_at)
+- model_calls / tool_calls / turn_audit（append-only，D8 细化字段）
+- learning_state（可变）/ answer_events（append-only）
+- material_snippets(id=HMAC, topic_id, content)（append-only insert-or-ignore）
+- metadata(seed_manifest_hash, schema_version)
+- worker_liveness(worker_id, pid, start_time, last_heartbeat) + running-slot 协调（D3）
+
+### 子决策 1.2 轮次状态机（已定 2026-11-21）
+- Q2 实际流转：**running → completed / failed / interrupted**（三者皆终态）。
+- schema CHECK 保留 **pending**，注释"预留给 2E 入队未领取"，**Q2 不写入 pending**（抢槽即 running）。
+- **interrupted vs failed 是语义不是技术**：failed 带 error_code（模型报错、工具超时）；interrupted 带 reason（drain 超时、用户取消、进程回收）。UI 文案不同→分开。
+- **只允许 running → 终态，禁止终态复活**。重试 = 新建 turn 带 parent_turn_id，不在原行改。
+
+### 子决策 1.3 消息顺序与 seq（推荐，D3 细化）
+- 每对话单调 turn_seq + msg_seq；抢槽后分配，用户消息与回复相邻→成对不交错（T3）。
+- GET 按 msg_seq 排序，带 turn_id+status（A2）。
+
+### 子决策 1.4 部分回复持久化（已定 A + 占位行，2026-11-21）
+- 选 **A UPDATE-in-place**（乙可变状态表）。
+- **关键：抢槽同一事务内就建 assistant 消息行（空内容）占住 msg_seq**。否则"生成完才插 assistant 行"→中断时库里只有用户消息无回复行→T3 成对有序在失败场景断。占位后中断该行仍在、内容停半截、seq 关系完好。
+- 配套三件事：
+  1. messages 加 **is_partial**（或 message_status）：生成中 true，最终写完 false。
+  2. **上下文构建必须排除 partial 行**（否则下一轮把半截话当历史喂模型——最常见事故）。
+  3. GET 可返回 partial 并打标；**审计只记最终版**，半成品不入 append-only 表。
+
+### 子决策 1.5 owner/租约与恢复（已定 甲，2026-11-21）
+- 选 **甲 lease/heartbeat**：turns.owner_worker + lease_expires_at；worker_liveness 心跳续租。
+- 启动恢复：扫 running，**租约过期/owner 已死**→标 interrupted(reason=process_restart) 或 failed、保留部分（is_partial 行）、释放槽；owner 活着不动（滚动重启不误杀兄弟）。
+- 乙 pid 简化弃（pid 复用风险、跨机不适用）。
+
+### 子决策 1.6 幂等（推荐）
+- UNIQUE(conversation_id, client_msg_id) 去重（C2）；assistant 按 turn_id upsert（seam 纪律 3）。
+
+### 选定方案（已决策 2026-11-21）
+- 1.1 实体模型：turns/messages/audit/learning_state/answer_events/material_snippets/metadata/worker_liveness（messages 加 is_partial；turns 加 parent_turn_id/error_code/interrupt_reason）。
+- 1.2 状态机：running→completed/failed/interrupted；CHECK 预留 pending（2E，Q2 不写）；interrupted(reason) vs failed(error_code) 语义分开；禁终态复活，重试=新 turn+parent_turn_id。
+- 1.3 seq：抢槽后分配，用户/回复相邻成对（T3）。
+- 1.4 部分回复：A UPDATE-in-place + 抢槽同事务建 assistant 占位行；is_partial 标记；上下文排除 partial；GET 可返 partial 打标、审计只记最终。
+- 1.5 owner：甲 lease/heartbeat，owner 感知恢复。
+- 1.6 幂等：UNIQUE(conversation_id,client_msg_id)；assistant 按 turn_id upsert。
+
+### 放弃方案及原因
+- 1.4 B append deltas：乙已可变状态表，UPDATE 更简；部分回放非 Q2 必需→弃（append-only 审计另记最终）。
+- 1.4 生成完才插 assistant 行：中断时缺回复行→T3 失败场景成对有序断→弃，改抢槽同事务占位。
+- 1.5 乙 pid 简化：pid 复用风险、跨机不适用→弃，选 lease/heartbeat。
+- 1.2 终态复活/原行重试：破坏状态机不可逆与审计→弃，重试=新 turn+parent_turn_id。
+- 1.2 Q2 写入 pending：Q2 抢槽即 running，pending 仅 2E 入队语义→CHECK 预留但不写。
+
+### 对下游的影响
+- D2：interrupted 态语义、部分落库方式（1.4）。
+- D3：running-slot 抢槽 + seq 分配（1.3）。
+- D8：model_calls/tool_calls/audit 字段（1.1）。
+
+---
+
 ## 其余决策（按顺序展开，届时补充完整分析）
-- **D1 轮次模型与状态机**（待决策）：turns/messages/执行记录表、状态机、seq 分配、重启恢复。
 - **D2 断线语义**（待决策）：后台继续 vs 取消；部分回复落库；重连视图。
 - **D3 并发串行化**（待决策）：整轮串行抢槽机制、幂等键、等待/超时。
 - **D-model 模型 API**（待决策）：供应商/模型、工具协议、流式格式、token 计量。
