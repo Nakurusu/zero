@@ -25,8 +25,8 @@
 | 4 | **D2 断线语义** | D1 | D3 槽位归属与持有期、D1 部分落库/interrupted、执行器任务模型 | 已决策 |
 | 5 | **D3 并发串行化** | D0, D1, D2 | 消息有序/不丢不重、重试幂等机制 | 已决策 |
 | 6 | **D-model 模型 API 供应商/模型** | 独立（集成层） | 执行器模型循环、工具协议(B7)、流式分块格式(A1)、token 计量(D8/E3) | 已决策 |
-| 7 | **D5 策略职责边界（纯规划器）** | D1 | D6 注册内容、D7 调用方、执行器契约、回退阶段(B6) | 讨论中 |
-| 8 | **D6 注册表 + 版本化配置** | D5, D1 | 切换/回滚、planned vs actual 审计 | 待决策 |
+| 7 | **D5 策略职责边界（纯规划器）** | D1 | D6 注册内容、D7 调用方、执行器契约、回退阶段(B6) | 已决策 |
+| 8 | **D6 注册表 + 版本化配置** | D5, D1 | 切换/回滚、planned vs actual 审计 | 讨论中 |
 | 9 | **D7 上下文构建器** | D5, D4 | 完整历史 vs 模型上下文分离、长对话/大材料处理(B8) | 待决策 |
 | 10 | **D8 审计 schema = 评估数据源** | D1, D5, D6, 执行器 | 评估数据契约（token/耗时/工具次数/策略版本/检查项） | 待决策 |
 
@@ -562,8 +562,67 @@ PG 真实角色（不止写吞吐）：MVCC 并发写去单写者天花板 + **�
 
 ---
 
+## D5 策略职责边界（纯规划器）
+
+状态：已决策（2026-11-21）
+影响需求：B2/B3/B4/B6、A6；上游 D1；下游 D6/D7/执行器
+
+### 背景与约束
+- B2 策略决定：指令/本轮上下文/允许工具。B4 新增策略不改存储/HTTP/执行器。B6 plan 构建阶段异常→默认策略回退；默认也失败→turn failed+信号+保留用户消息。
+- seams：TurnPlan 可序列化、executor 位置无关。D1 审计 planned/actual+fallback_reason。
+
+### 子决策 5.1 接口契约（已定 2026-11-21）
+- plan(PlanInput) -> TurnPlan。
+- PlanInput（executor 装载，纯数据）：user_message、history 候选、learning_state、material_candidates、conversation_meta、**config=窄化 StrategyConfig**（不含 model params）。
+- TurnPlan（可序列化纯数据）：instructions、context（选定消息/片段引用+窗口参数）、allowed_tools（⊆注册工具）、**plan_schema_version**（G8 演进）。
+- **不含 model params**（E2 控制变量；params 来自独立配置，策略不覆盖）。
+- **候选池边界由 config 固定且两策略完全一致**（否则 E2 失效）：history/material 候选池由配置界定、对两策略相同；策略只在同一池上选择/组装差异，allowed_tools 可不同（属策略行为），数据池必须同。
+
+### 子决策 5.2 纯规划器边界（已定 2026-11-21）
+- plan() **纯到连时钟/随机/环境变量都不碰**；需要则塞进 PlanInput（now/random_seed/env 派生配置由 executor 注入）。不调模型/不执行工具/不读库/不写库。
+- executor 校验 plan（tools⊆注册、引用有效、plan_schema_version 兼容）→跑统一循环。
+- 收益：给定 PlanInput 完全确定→可复现/可单测/可序列化（队列 seam）/位置无关；新增策略=新类+注册（B4）。
+- 与 5.1 协同：纯+池来自 PlanInput→保证两策略候选池一致（E2）。
+
+### 子决策 5.3 上下文构建器调用方（D7，已定 2026-11-21）
+- B2 策略决定上下文→策略.plan() 用 context builder 助手从 PlanInput 候选中选择/组装（窗口/摘要/检索片段）。
+- context builder 是策略调用的纯助手（机制：窗口/摘要/检索）；executor 装载候选数据。
+- 备选：executor 建上下文、策略只管指令+工具→违反 B2（策略须决定上下文）→弃。
+
+### 子决策 5.4 回退阶段（B6，已定 2026-11-21）
+- 回退仅包裹 plan() 构建阶段（含校验失败）：strategy.plan() 异常→catch→default.plan()→记 **fallback_reason（枚举**，如 strategy_plan_error/strategy_validation_error）。
+- default.plan() 也异常→turn failed(error_code=strategy_plan_failed)+SSE error 信号+用户消息保留（claim tx 已落库）；fallback_reason 仍记原触发因。
+- **执行器阶段失败（模型/工具）不触发策略回退**——属轮次级失败/重试。
+- **planned/actual 都落审计**（各带 name+version）+fallback_reason 枚举+plan_schema_version（D1/D8）。
+
+### 子决策 5.5 两策略（B3，已定 2026-11-21）
+- 讲解优先 explain-first：先讲解再练习。
+- 练习优先 practice-first：首轮提问探掌握，答错再讲解；允许判答案工具。
+- 差异仅在 plan() 输出（指令/上下文/工具），公共执行器不变。
+
+### 选定方案（已决策 2026-11-21，五条全锁）
+- 5.1 plan(PlanInput)->TurnPlan；config=窄化 StrategyConfig（无 model params）；TurnPlan 含 plan_schema_version；候选池边界 config 固定且两策略一致（E2）。
+- 5.2 plan() 纯到不碰时钟/随机/env（需要塞 PlanInput）；executor 校验+统一循环。
+- 5.3 策略调用 context builder 纯助手选上下文；executor 装载候选。
+- 5.4 回退仅 plan 阶段（含校验失败）；fallback_reason 枚举；default 失败→turn failed+信号+保留用户消息；执行器失败不回退；planned/actual 都落审计。
+- 5.5 explain-first / practice-first，差异仅 plan() 输出。
+
+### 放弃方案及原因
+- executor 建上下文（策略只管指令+工具）：违反 B2 策略决定上下文→弃。
+- model params 入 plan/StrategyConfig：破坏 E2 控制变量→弃，params 独立配置。
+- plan() 碰时钟/随机/env：隐藏非确定输入破坏复现/单测→弃，全注入 PlanInput。
+- 两策略候选池不一致：E2 混淆（输入数据差异非策略差异）→弃，config 固定同池。
+- fallback_reason 自由文本：不可机器汇总→弃，用枚举。
+- 执行器阶段失败触发策略回退：混淆轮次失败与策略规划失败→弃，回退仅 plan 阶段。
+
+### 对下游的影响
+- D6：注册 name→version→factory；planned/actual 审计。
+- D7：context builder 作策略纯助手。
+- 执行器：装载 PlanInput→校验 plan→统一循环；回退仅 plan 阶段。
+
+---
+
 ## 其余决策（按顺序展开，届时补充完整分析）
-- **D5 策略职责边界**（待决策）：plan(PlanInput)->TurnPlan 契约、回退阶段。
 - **D6 注册表+版本化配置**（待决策）：name→version→factory、配置切换/回滚、planned vs actual。
 - **D7 上下文构建器**（待决策）：窗口/摘要/检索、上下文快照落库。
 - **D8 审计 schema=评估数据源**（待决策）：模型/工具调用记录字段、run_id、检查项汇总。
