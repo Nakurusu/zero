@@ -24,8 +24,8 @@
 | 3 | **D1 轮次模型与状态机** | D4, D0 | D2 状态/部分态、D3 seq 与 running 槽、D6/D8 审计字段 | 已决策 |
 | 4 | **D2 断线语义** | D1 | D3 槽位归属与持有期、D1 部分落库/interrupted、执行器任务模型 | 已决策 |
 | 5 | **D3 并发串行化** | D0, D1, D2 | 消息有序/不丢不重、重试幂等机制 | 已决策 |
-| 6 | **D-model 模型 API 供应商/模型** | 独立（集成层） | 执行器模型循环、工具协议(B7)、流式分块格式(A1)、token 计量(D8/E3) | 讨论中 |
-| 7 | **D5 策略职责边界（纯规划器）** | D1 | D6 注册内容、D7 调用方、执行器契约、回退阶段(B6) | 待决策 |
+| 6 | **D-model 模型 API 供应商/模型** | 独立（集成层） | 执行器模型循环、工具协议(B7)、流式分块格式(A1)、token 计量(D8/E3) | 已决策 |
+| 7 | **D5 策略职责边界（纯规划器）** | D1 | D6 注册内容、D7 调用方、执行器契约、回退阶段(B6) | 讨论中 |
 | 8 | **D6 注册表 + 版本化配置** | D5, D1 | 切换/回滚、planned vs actual 审计 | 待决策 |
 | 9 | **D7 上下文构建器** | D5, D4 | 完整历史 vs 模型上下文分离、长对话/大材料处理(B8) | 待决策 |
 | 10 | **D8 审计 schema = 评估数据源** | D1, D5, D6, 执行器 | 评估数据契约（token/耗时/工具次数/策略版本/检查项） | 待决策 |
@@ -514,8 +514,55 @@ PG 真实角色（不止写吞吐）：MVCC 并发写去单写者天花板 + **�
 
 ---
 
+## D-model 模型 API 供应商/模型
+
+状态：已决策（2026-11-21）
+影响需求：B7/A1/D8/E3/E2/H6；上游 独立集成层；下游 执行器实现
+
+### 背景与约束
+- 真实模型 API（H6）；≥1 工具的真实 tool call 运行示例（B7）；流式（A1）；token 计量（E3）；评估固定模型+参数（E2）。
+- ModelClient seam：executor 依赖接口非具体 SDK→供应商可换、50× 限流/缓存可插此后。
+
+### 子决策 m.1 供应商/模型（待用户：手上哪家密钥）
+| 候选 | SDK/协议 | 工具调用 | 流式 | token 字段 |
+|---|---|---|---|---|
+| OpenAI GPT | openai SDK | tools/function calling | SSE delta.content/tool_calls | usage.prompt/completion_tokens |
+| Anthropic Claude | anthropic SDK | tool_use blocks | content_block_delta events | usage.input/output_tokens |
+| DashScope Qwen | openai 兼容端点 | 同 OpenAI | 同 OpenAI | 同 OpenAI |
+| 其他兼容(DeepSeek/Moonshot/本地) | openai SDK+base_url | 同 OpenAI | 同 OpenAI | 同 OpenAI |
+- OpenAI 兼容覆盖最广（DashScope/DeepSeek/Moonshot 走 openai SDK+base_url）。
+- **已定（2026-11-21）：DashScope Qwen + OpenAI 兼容端点**（用户密钥为 qwen）。
+  - SDK：openai SDK，base_url=https://dashscope.aliyuncs.com/compatible-mode/v1；密钥 env DASHSCOPE_API_KEY（H3 不入库）。
+  - 工具调用：OpenAI tools/function calling（qwen-plus/max 支持）；流式 SSE delta.content/delta.tool_calls。
+  - token：usage.prompt_tokens/completion_tokens；**流式需 stream_options={include_usage:true} 才返 usage**（E3 计量关键）。
+  - 适配器：OpenAICompatAdapter（ModelClient seam 实现），executor 消费归一事件。
+- **模型标识+params：暂不固定（用户开发后手动调），预留预设值**（placeholder：model=qwen-plus、temperature=0.7、max_tokens=2048、top_p=0.9），经 env/config 配置。
+- **E2 一致性仍在运行期保证**：评估 harness 读单一 model+params 配置源，对两策略/两次跑施加同一配置，并随 run 记录模型标识+params（可追溯）。设计期不固定值≠违反 E2；E2 要求运行期一致，由单配置源+记录强制。模型须支持 tools（qwen-plus/max）。
+
+### 子决策 m.2 ModelClient 接口归一（推荐）
+- 接口 stream_chat(messages, tools, params) -> AsyncIterator[Delta|ToolCall|Usage]；归一不同供应商 chunk/tool/usage 格式。
+- executor 只消费归一事件；适配器封装供应商差异。
+- 评估固定 params（temperature/max_tokens/top_p…）随 run 记录（E2）。
+
+### 子决策 m.3 工具协议（B7）
+- 预置材料片段查询工具；模型发起 tool call→执行→结果回传→继续生成；适配器翻译供应商 tool 协议。
+
+### 选定方案（已决策 2026-11-21）
+- m.1 DashScope Qwen + OpenAI 兼容端点（OpenAICompatAdapter，base_url compatible-mode/v1，DASHSCOPE_API_KEY）；模型标识+params 预留预设值（qwen-plus/0.7/2048/0.9 placeholder），用户开发后手动调；流式 include_usage 取 token。
+- m.2 ModelClient seam 归一事件；评估单配置源 + 随 run 记录（E2 运行期一致）。
+- m.3 OpenAI tools 协议；预置材料片段查询工具，真实 tool call 循环。
+
+### 放弃方案及原因
+- Anthropic 单独适配器：用户无密钥、协议差异大（tool_use/content_block_delta/input_output_tokens）→弃。
+- 原生 dashscope SDK：非 OpenAI 兼容、额外协议→弃，用 OpenAI 兼容统一（覆盖最广）。
+- 设计期固定模型/params 值：用户选择开发后手动调→弃固定，改预留预设值 + 运行期单配置源强制 E2 一致。
+
+### 对下游的影响
+- 执行器模型循环/工具循环按归一事件实现；D8 token 字段按供应商 usage 映射。
+
+---
+
 ## 其余决策（按顺序展开，届时补充完整分析）
-- **D-model 模型 API**（待决策）：供应商/模型、工具协议、流式格式、token 计量。
 - **D5 策略职责边界**（待决策）：plan(PlanInput)->TurnPlan 契约、回退阶段。
 - **D6 注册表+版本化配置**（待决策）：name→version→factory、配置切换/回滚、planned vs actual。
 - **D7 上下文构建器**（待决策）：窗口/摘要/检索、上下文快照落库。
