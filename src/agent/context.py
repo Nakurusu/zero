@@ -30,6 +30,14 @@ def estimate_tokens(text: str) -> int:
     return cjk + (other + 3) // 4
 
 
+def keyword_score(keywords: list[str], title: str | None, text: str) -> int:
+    """Shared pure scoring rule for preselect and query_material (D7.3)."""
+    score = sum(1 for k in keywords if k and k in text)
+    if title and title in text:
+        score += 2
+    return score
+
+
 @dataclass(frozen=True)
 class StrategyConfig:
     """Narrowed strategy config (D5.1): pool bounds only, never model params."""
@@ -122,9 +130,7 @@ class ContextBuilder:
             keywords = m["keywords"]
             if isinstance(keywords, str):
                 keywords = json.loads(keywords)
-            score = sum(1 for k in keywords if k and k in user_message)
-            if m.get("title") and m["title"] in user_message:
-                score += 2
+            score = keyword_score(keywords, m.get("title"), user_message)
             if score > 0:
                 scored.append((-score, m["id"]))
         scored.sort()
