@@ -839,6 +839,10 @@ PG 真实角色（不止写吞吐）：MVCC 并发写去单写者天花板 + **�
 - 模型 **qwen3.8-flash**、端点 **https://maas.qianwenaiapi.com/compatible-mode/v1**（OpenAI 兼容协议与适配器设计不变）；密钥 env **API_KEY**（用户指定唯一名，弃 DASHSCOPE_API_KEY/QWEN_API_KEY）。
 - 代码命名不带 zero：包名 `agent`、env 前缀 `AGENT_`、默认 DB `data/agent.db`；仓库名 Zero 保留。
 
+### 评估基线前调优（2026-11-22）
+- explain-first 指令显式化：答错后**必须调用 provide_explanation**、只有用户实际作答后才 judge_answer（禁自问自答）。起因：harness 验证发现模型以纯文本讲解不调行为工具、首轮自问自答→检查失败（D8.4 已接受风险的实例）。
+- 版本处理：官方两跑尚未执行，无已发布基线依赖旧指令，故保持 v1 定稿；两官方 run 使用同一最终版本（E2/E6 一致性不受影响）。此后若再改策略行为则升版本。
+
 ### 工程环境
 conda 环境 `zero`（Python 3.11）；pip 装包；收尾 pip freeze 导出 requirements.txt 保复现。
 
