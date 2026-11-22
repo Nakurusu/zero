@@ -75,7 +75,14 @@ class OpenAICompatClient:
         usage: Usage | None = None
         try:
             stream = await self._client.chat.completions.create(**kwargs)
-            async for chunk in stream:
+        except (APIError, APIConnectionError, APITimeoutError) as exc:
+            raise ModelError(str(exc)) from exc
+        try:
+            while True:
+                try:
+                    chunk = await stream.__anext__()
+                except StopAsyncIteration:
+                    break
                 if getattr(chunk, "usage", None):
                     usage = Usage(chunk.usage.prompt_tokens, chunk.usage.completion_tokens)
                 if not chunk.choices:
@@ -99,6 +106,8 @@ class OpenAICompatClient:
                             buf["arguments"] += tc.function.arguments
         except (APIError, APIConnectionError, APITimeoutError) as exc:
             raise ModelError(str(exc)) from exc
+        finally:
+            await stream.close()
 
         for buf in tool_buf.values():
             try:

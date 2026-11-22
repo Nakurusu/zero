@@ -316,13 +316,14 @@ class Repo:
     def finalize_turn(
         self, turn_id: str, owner: str, fence: int, *, status: str,
         content: str | None = None, error_code: str | None = None, interrupt_reason: str | None = None,
+        fallback_reason: str | None = None,
     ) -> bool:
         assert status in ("completed", "failed", "interrupted")
         self.con.execute("BEGIN IMMEDIATE")
         cur = self.con.execute(
-            "UPDATE turns SET status=?, finished_at=?, error_code=?, interrupt_reason=? "
+            "UPDATE turns SET status=?, finished_at=?, error_code=?, interrupt_reason=?, fallback_reason=? "
             "WHERE id=? AND status='running' AND owner_instance=? AND fence_token=?",
-            (status, now_iso(), error_code, interrupt_reason, turn_id, owner, fence),
+            (status, now_iso(), error_code, interrupt_reason, fallback_reason, turn_id, owner, fence),
         )
         if cur.rowcount == 0:
             self.con.execute("ROLLBACK")
@@ -346,6 +347,13 @@ class Repo:
             "SELECT cancel_requested FROM turns WHERE id=?", (turn_id,)
         ).fetchone()
         return bool(row and row["cancel_requested"])
+
+    def turn_control(self, turn_id: str) -> dict | None:
+        """One cheap read for the executor's between-chunk ownership/cancel poll."""
+        return _row(self.con.execute(
+            "SELECT status, cancel_requested, owner_instance, fence_token FROM turns WHERE id=?",
+            (turn_id,),
+        ).fetchone())
 
     # ---------- liveness / recovery ----------
 
