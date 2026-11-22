@@ -1,0 +1,9 @@
+bind = "127.0.0.1:8000"
+workers = 2
+worker_class = "uvicorn.workers.UvicornWorker"
+graceful_timeout = 90
+timeout = 120
+max_requests = 0
+preload_app = False
+accesslog = "-"
+errorlog = "-"

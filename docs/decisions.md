@@ -806,5 +806,43 @@ PG 真实角色（不止写吞吐）：MVCC 并发写去单写者天花板 + **�
 
 ---
 
+## 实现细化（2026-11-22，Q2 开工，用户拍板）
+
+> P1–P6 全部采纳 + 三项修正。本节是 D0–D8 的实现粒度补充，不改变上游决策。
+
+### 采纳的实现小项
+- **P1 judge_answer=预设答案键**：种子含题库（questions：id/prompt/expected/acceptable/knowledge_point），工具规范化比对→确定可测；模型自判（检查与被检行为同源）弃。
+- **P2 最小 API 扩展**：POST /conversations（建会话+指定策略）、PATCH …/strategy（切换）、GET …/turns/{id}（审计详情）。E2 独立会话/T4 切换/B7 审计可读的前提。
+- **P3 eval=HTTP 驱动真实服务**：全栈证据（SSE/并发闸/幂等）；in-process 绕过 HTTP 层弃。
+- **P4（被修正 1 覆盖）**：T1 改真重启（见下）；T3 仍存储层（题目允许两进程/两连接）。
+- **P5 T5=固定小用例集两跑**（pytest 真实 API）；完整 3–5 用例两跑作交付归档（E6 本体）。
+- **P6 省略 turns.lease_expires_at**：恢复统一走 worker_liveness 心跳新鲜度单权威（D8.7），避免 turn 级 lease 双权威同步；D1.1 字段列表据此收窄。
+
+### 修正 1：T1 真重启测试
+- pytest 管理真实服务子进程（uvicorn+临时 DB+真实 API）：①completed 轮次 kill→重启→GET 历史/状态正确；②running 轮次流式中途 kill→重启→心跳 TTL 过后回收 interrupted(process_restart)、partial 保留、槽释放。
+- 后果：T1 计入真实 API 测试组（需密钥+进程管理 fixture）；存储层仍保留 fencing/回收机制单测（快、无 API）。
+
+### 修正 2：评估状态隔离
+- **每 run 独立 DB 文件 + 独立服务实例**；run 内**两策略臂独立用户**（预置 learning_state 完全相同）。
+- 动机：learning_state 按 user+topic 权威（G4），同用户跨臂/跨 run 会经 answer_events/状态更新相互污染→E2/E6 失效。
+- 后果：harness 管理服务生命周期（起停+种子）；eval_runs 行在各自 DB；两 run seed_manifest_hash 相同证同种子；对比表读导出记录而非共享库。materials 不可变种子共享无碍。
+
+### 修正 3：回收后写入 fencing
+- turns 加 **fence_token**（claim=0；回收 UPDATE 时 +1）。执行器**所有**写路径（终态、部分刷盘、model/tool 审计 append）带条件 `status='running' AND owner_instance=me AND fence_token=claim值`；0 行命中→所有权丢失→中止生成+发 interrupted(reclaimed) 信号，不再写任何行。
+- 动机：stale owner（心跳延迟/暂停后复活）在回收后落最终结果→复活已 interrupted 轮次/污染审计。仅终态守卫在 Q2 状态机下已够，但显式 token 为 2E 重投（轮次合法回 running 换 owner）预留正确性，且使所有权语义显式可测。
+- 后果：写路径多一列条件+0 行检测分支；存储层 fencing 单测（回收后 stale 写被拒）。
+
+### 默认参数（生效，可 env 覆盖）
+心跳 1s/TTL 5s（测试缩短）、drain 10s、抢槽 poll 150ms/超时 30s→409、刷盘节流 500ms、窗口 3000 token+20 轮兜底、预选≤3、工具循环上限 8、gunicorn workers=2/graceful_timeout 90s/max_requests 关/不 preload。估算器=字符启发式（CJK≈1 token/字、其余≈4 字符/token）版本固定；实际计量以 API usage 为准。种子主题=初中数学·一元二次方程，题库+材料片段含答案键。
+
+### 模型/端点与命名更新（2026-11-22，用户指令，覆盖 D-model 对应子项）
+- 模型 **qwen3.8-flash**、端点 **https://maas.qianwenaiapi.com/compatible-mode/v1**（OpenAI 兼容协议与适配器设计不变）；密钥 env **QWEN_API_KEY**（端点非 DashScope，弃 DASHSCOPE_API_KEY 名）。
+- 代码命名不带 zero：包名 `agent`、env 前缀 `AGENT_`、默认 DB `data/agent.db`；仓库名 Zero 保留。
+
+### 工程环境
+conda 环境 `zero`（Python 3.11）；pip 装包；收尾 pip freeze 导出 requirements.txt 保复现。
+
+---
+
 ## 其余决策
 （D0–D8 共 10 项全部已决策；无待决策项）
