@@ -1,0 +1,1102 @@
+{
+  "captured_at": "2026-11-22T06:05:08+00:00",
+  "model": "qwen3.8-flash",
+  "params": {
+    "model": "qwen3.8-flash",
+    "temperature": 0.7,
+    "max_tokens": 2048,
+    "top_p": 0.9
+  },
+  "base_url": "https://maas.qianwenaiapi.com/compatible-mode/v1",
+  "conversation": {
+    "id": "25047aa0e8274505b8e32cb92b6757c1",
+    "topic_id": "t-quadratic",
+    "user_id": "u-demo",
+    "strategy_name": "explain-first",
+    "strategy_version": 1,
+    "created_at": "2026-11-22T06:04:58.764+00:00"
+  },
+  "user_message": "我想学习韦达定理。请先用 query_material 查询材料中关于韦达定理的内容，再讲解并出一道题。",
+  "turn": {
+    "id": "d9de7f956d0b4c6082c8c18e56c372c3",
+    "turn_seq": 1,
+    "status": "completed",
+    "planned_strategy": "explain-first",
+    "planned_version": 1,
+    "actual_strategy": "explain-first",
+    "actual_version": 1,
+    "fallback_reason": null,
+    "started_at": "2026-11-22T06:04:58.764+00:00",
+    "finished_at": "2026-11-22T06:05:08.437+00:00"
+  },
+  "plan_doc": {
+    "instructions": "你是学习陪伴助手，当前教学策略：讲解优先（explain-first）。\n教学流程：\n1. 用户提出学习需求或新知识点时，先讲解相关知识，再安排练习。\n2. 开始讲解时，调用 provide_explanation，参数 knowledge_point 为所讲知识点名称；讲解正文写在回复里，可引用材料。\n3. 讲解完成后，从下方题库选择一道合适的题，调用 ask_question 出题：question_id 必须来自题库，question_text 用题库原题或等价改写。\n4. 用户作答后，调用 judge_answer 判定：question_id 为所答题目，user_answer 取用户原话中的答案；答错则讲解错因，答对则确认并推进。\n5. 需要材料细节时调用 query_material 查询预置材料。\n约束：讲解必须先于出题；不要一次性讲完所有知识点；回复用中文，面向初中学生，简洁清晰。",
+    "context": {
+      "message_ids": [],
+      "snippet_ids": [
+        "cbe2fbfd1b848428304749c23b20f43bb828b78dec6f86c41415b20e4b085da0"
+      ],
+      "window_params": {
+        "token_budget": 3000,
+        "max_turns": 20,
+        "selected_turns": 0,
+        "estimated_tokens": 0,
+        "estimator_version": "est-v1"
+      }
+    },
+    "allowed_tools": [
+      "query_material",
+      "provide_explanation",
+      "ask_question",
+      "judge_answer"
+    ],
+    "plan_schema_version": 1,
+    "context_builder_version": "cb-v1"
+  },
+  "messages": [
+    {
+      "id": "de1bd2388ae4471791f32e6186eca675",
+      "conversation_id": "25047aa0e8274505b8e32cb92b6757c1",
+      "turn_id": "d9de7f956d0b4c6082c8c18e56c372c3",
+      "role": "user",
+      "content": "我想学习韦达定理。请先用 query_material 查询材料中关于韦达定理的内容，再讲解并出一道题。",
+      "msg_seq": 1,
+      "is_partial": 0,
+      "created_at": "2026-11-22T06:04:58.764+00:00"
+    },
+    {
+      "id": "0e7de33c5b5e44e4864c91c7a66fa7d6",
+      "conversation_id": "25047aa0e8274505b8e32cb92b6757c1",
+      "turn_id": "d9de7f956d0b4c6082c8c18e56c372c3",
+      "role": "assistant",
+      "content": "**韦达定理（根与系数的关系）**\n\n根据材料：若 x₁、x₂ 是一元二次方程 ax²+bx+c=0（a≠0）的两个根，则\n\n- 两根之和：x₁ + x₂ = −b/a\n- 两根之积：x₁ · x₂ = c/a\n\n**怎么理解**\n- 这两个式子是从求根公式 x = (−b ± √Δ)/(2a) 推出来的：两根相加时 ±√Δ 互相抵消，剩下 −b/a；两根相乘时用平方差，得到 c/a。\n- 好处是**不用真的把根解出来**，就能知道和与积；反过来，已知一根也能求另一根，还能\"由和与积构造方程\"：x² − (和)x + (积) = 0。\n\n**用 x² − 5x + 6 = 0 演示**\n这里 a = 1，b = −5，c = 6。\n- x₁ + x₂ = −b/a = −(−5)/1 = **5**\n- x₁ · x₂ = c/a = 6/1 = **6**\n- 验证：解出根是 2 和 3，2+3=5，2×3=6 ✅\n\n⚠️ 常见错误：忘记 b 自带的负号，把 −b/a 直接写成 b/a；使用时一定要先把方程化成一般式，再取 a、b、c。\n\n---\n\n来练一道：\n\n请写出你的答案（两根之和 = ?，两根之积 = ?），我来帮你判定。",
+      "msg_seq": 2,
+      "is_partial": 0,
+      "created_at": "2026-11-22T06:04:58.764+00:00"
+    }
+  ],
+  "model_calls": [
+    {
+      "id": 1,
+      "turn_id": "d9de7f956d0b4c6082c8c18e56c372c3",
+      "call_seq": 1,
+      "model_id": "qwen3.8-flash",
+      "params": {
+        "model": "qwen3.8-flash",
+        "temperature": 0.7,
+        "max_tokens": 2048,
+        "top_p": 0.9
+      },
+      "input_tokens": 1193,
+      "output_tokens": 76,
+      "latency_ms": 1458,
+      "created_at": "2026-11-22T06:05:00.223+00:00"
+    },
+    {
+      "id": 2,
+      "turn_id": "d9de7f956d0b4c6082c8c18e56c372c3",
+      "call_seq": 3,
+      "model_id": "qwen3.8-flash",
+      "params": {
+        "model": "qwen3.8-flash",
+        "temperature": 0.7,
+        "max_tokens": 2048,
+        "top_p": 0.9
+      },
+      "input_tokens": 1387,
+      "output_tokens": 49,
+      "latency_ms": 885,
+      "created_at": "2026-11-22T06:05:01.112+00:00"
+    },
+    {
+      "id": 3,
+      "turn_id": "d9de7f956d0b4c6082c8c18e56c372c3",
+      "call_seq": 5,
+      "model_id": "qwen3.8-flash",
+      "params": {
+        "model": "qwen3.8-flash",
+        "temperature": 0.7,
+        "max_tokens": 2048,
+        "top_p": 0.9
+      },
+      "input_tokens": 1465,
+      "output_tokens": 429,
+      "latency_ms": 6069,
+      "created_at": "2026-11-22T06:05:07.183+00:00"
+    },
+    {
+      "id": 4,
+      "turn_id": "d9de7f956d0b4c6082c8c18e56c372c3",
+      "call_seq": 7,
+      "model_id": "qwen3.8-flash",
+      "params": {
+        "model": "qwen3.8-flash",
+        "temperature": 0.7,
+        "max_tokens": 2048,
+        "top_p": 0.9
+      },
+      "input_tokens": 1942,
+      "output_tokens": 46,
+      "latency_ms": 1251,
+      "created_at": "2026-11-22T06:05:08.436+00:00"
+    }
+  ],
+  "tool_calls": [
+    {
+      "id": 1,
+      "turn_id": "d9de7f956d0b4c6082c8c18e56c372c3",
+      "call_seq": 2,
+      "tool_name": "query_material",
+      "args": {
+        "query": "韦达定理 两根之和 两根之积"
+      },
+      "result_ref": [
+        "cbe2fbfd1b848428304749c23b20f43bb828b78dec6f86c41415b20e4b085da0"
+      ],
+      "latency_ms": 0,
+      "was_allowed": true,
+      "created_at": "2026-11-22T06:05:00.225+00:00"
+    },
+    {
+      "id": 2,
+      "turn_id": "d9de7f956d0b4c6082c8c18e56c372c3",
+      "call_seq": 4,
+      "tool_name": "provide_explanation",
+      "args": {
+        "knowledge_point": "韦达定理（根与系数的关系）"
+      },
+      "result_ref": {
+        "knowledge_point": "韦达定理（根与系数的关系）"
+      },
+      "latency_ms": 0,
+      "was_allowed": true,
+      "created_at": "2026-11-22T06:05:01.113+00:00"
+    },
+    {
+      "id": 3,
+      "turn_id": "d9de7f956d0b4c6082c8c18e56c372c3",
+      "call_seq": 6,
+      "tool_name": "ask_question",
+      "args": {
+        "question_id": "q-vieta-01",
+        "question_text": "方程 x²−5x+6=0 的两根之和与两根之积分别是多少？（提示：直接用韦达定理，不解方程）"
+      },
+      "result_ref": {
+        "question_id": "q-vieta-01",
+        "valid": true
+      },
+      "latency_ms": 0,
+      "was_allowed": true,
+      "created_at": "2026-11-22T06:05:07.184+00:00"
+    }
+  ],
+  "turn_context": [
+    {
+      "turn_id": "d9de7f956d0b4c6082c8c18e56c372c3",
+      "snippet_id": "cbe2fbfd1b848428304749c23b20f43bb828b78dec6f86c41415b20e4b085da0",
+      "source": "preselected"
+    },
+    {
+      "turn_id": "d9de7f956d0b4c6082c8c18e56c372c3",
+      "snippet_id": "cbe2fbfd1b848428304749c23b20f43bb828b78dec6f86c41415b20e4b085da0",
+      "source": "tool"
+    }
+  ],
+  "trace": [
+    {
+      "call_seq": 1,
+      "kind": "model",
+      "model_id": "qwen3.8-flash",
+      "input_tokens": 1193,
+      "output_tokens": 76,
+      "latency_ms": 1458
+    },
+    {
+      "call_seq": 2,
+      "kind": "tool",
+      "tool_name": "query_material",
+      "args": {
+        "query": "韦达定理 两根之和 两根之积"
+      },
+      "result_ref": [
+        "cbe2fbfd1b848428304749c23b20f43bb828b78dec6f86c41415b20e4b085da0"
+      ],
+      "was_allowed": true,
+      "latency_ms": 0
+    },
+    {
+      "call_seq": 3,
+      "kind": "model",
+      "model_id": "qwen3.8-flash",
+      "input_tokens": 1387,
+      "output_tokens": 49,
+      "latency_ms": 885
+    },
+    {
+      "call_seq": 4,
+      "kind": "tool",
+      "tool_name": "provide_explanation",
+      "args": {
+        "knowledge_point": "韦达定理（根与系数的关系）"
+      },
+      "result_ref": {
+        "knowledge_point": "韦达定理（根与系数的关系）"
+      },
+      "was_allowed": true,
+      "latency_ms": 0
+    },
+    {
+      "call_seq": 5,
+      "kind": "model",
+      "model_id": "qwen3.8-flash",
+      "input_tokens": 1465,
+      "output_tokens": 429,
+      "latency_ms": 6069
+    },
+    {
+      "call_seq": 6,
+      "kind": "tool",
+      "tool_name": "ask_question",
+      "args": {
+        "question_id": "q-vieta-01",
+        "question_text": "方程 x²−5x+6=0 的两根之和与两根之积分别是多少？（提示：直接用韦达定理，不解方程）"
+      },
+      "result_ref": {
+        "question_id": "q-vieta-01",
+        "valid": true
+      },
+      "was_allowed": true,
+      "latency_ms": 0
+    },
+    {
+      "call_seq": 7,
+      "kind": "model",
+      "model_id": "qwen3.8-flash",
+      "input_tokens": 1942,
+      "output_tokens": 46,
+      "latency_ms": 1251
+    }
+  ],
+  "sse_events": [
+    {
+      "offset": 0,
+      "type": "turn_started",
+      "data": {
+        "turn_id": "d9de7f956d0b4c6082c8c18e56c372c3",
+        "turn_seq": 1
+      }
+    },
+    {
+      "offset": 1,
+      "type": "tool",
+      "data": {
+        "name": "query_material",
+        "arguments": {
+          "query": "韦达定理 两根之和 两根之积"
+        },
+        "was_allowed": true
+      }
+    },
+    {
+      "offset": 2,
+      "type": "tool",
+      "data": {
+        "name": "provide_explanation",
+        "arguments": {
+          "knowledge_point": "韦达定理（根与系数的关系）"
+        },
+        "was_allowed": true
+      }
+    },
+    {
+      "offset": 3,
+      "type": "delta",
+      "data": {
+        "content": "**"
+      }
+    },
+    {
+      "offset": 4,
+      "type": "delta",
+      "data": {
+        "content": "韦达定理（"
+      }
+    },
+    {
+      "offset": 5,
+      "type": "delta",
+      "data": {
+        "content": "根与系数的"
+      }
+    },
+    {
+      "offset": 6,
+      "type": "delta",
+      "data": {
+        "content": "关系）**\n\n根据"
+      }
+    },
+    {
+      "offset": 7,
+      "type": "delta",
+      "data": {
+        "content": "材料：若 x"
+      }
+    },
+    {
+      "offset": 8,
+      "type": "delta",
+      "data": {
+        "content": "₁、x₂"
+      }
+    },
+    {
+      "offset": 9,
+      "type": "delta",
+      "data": {
+        "content": " 是一元二次"
+      }
+    },
+    {
+      "offset": 10,
+      "type": "delta",
+      "data": {
+        "content": "方程 ax²+"
+      }
+    },
+    {
+      "offset": 11,
+      "type": "delta",
+      "data": {
+        "content": "bx+c=0"
+      }
+    },
+    {
+      "offset": 12,
+      "type": "delta",
+      "data": {
+        "content": "（"
+      }
+    },
+    {
+      "offset": 13,
+      "type": "delta",
+      "data": {
+        "content": "a≠0"
+      }
+    },
+    {
+      "offset": 14,
+      "type": "delta",
+      "data": {
+        "content": "）的两个根，"
+      }
+    },
+    {
+      "offset": 15,
+      "type": "delta",
+      "data": {
+        "content": "则\n\n- "
+      }
+    },
+    {
+      "offset": 16,
+      "type": "delta",
+      "data": {
+        "content": "两根之和"
+      }
+    },
+    {
+      "offset": 17,
+      "type": "delta",
+      "data": {
+        "content": "：x₁ +"
+      }
+    },
+    {
+      "offset": 18,
+      "type": "delta",
+      "data": {
+        "content": " x₂ = −"
+      }
+    },
+    {
+      "offset": 19,
+      "type": "delta",
+      "data": {
+        "content": "b/a\n-"
+      }
+    },
+    {
+      "offset": 20,
+      "type": "delta",
+      "data": {
+        "content": " 两根之积"
+      }
+    },
+    {
+      "offset": 21,
+      "type": "delta",
+      "data": {
+        "content": "：x₁ ·"
+      }
+    },
+    {
+      "offset": 22,
+      "type": "delta",
+      "data": {
+        "content": " x₂ = c"
+      }
+    },
+    {
+      "offset": 23,
+      "type": "delta",
+      "data": {
+        "content": "/a\n\n**怎么"
+      }
+    },
+    {
+      "offset": 24,
+      "type": "delta",
+      "data": {
+        "content": "理解**\n-"
+      }
+    },
+    {
+      "offset": 25,
+      "type": "delta",
+      "data": {
+        "content": " 这两个"
+      }
+    },
+    {
+      "offset": 26,
+      "type": "delta",
+      "data": {
+        "content": "式子是从求"
+      }
+    },
+    {
+      "offset": 27,
+      "type": "delta",
+      "data": {
+        "content": "根公式 x"
+      }
+    },
+    {
+      "offset": 28,
+      "type": "delta",
+      "data": {
+        "content": " = (−b"
+      }
+    },
+    {
+      "offset": 29,
+      "type": "delta",
+      "data": {
+        "content": " ±"
+      }
+    },
+    {
+      "offset": 30,
+      "type": "delta",
+      "data": {
+        "content": " √Δ)/(2"
+      }
+    },
+    {
+      "offset": 31,
+      "type": "delta",
+      "data": {
+        "content": "a)"
+      }
+    },
+    {
+      "offset": 32,
+      "type": "delta",
+      "data": {
+        "content": " 推出来的："
+      }
+    },
+    {
+      "offset": 33,
+      "type": "delta",
+      "data": {
+        "content": "两根相加时 ±"
+      }
+    },
+    {
+      "offset": 34,
+      "type": "delta",
+      "data": {
+        "content": "√Δ 互相"
+      }
+    },
+    {
+      "offset": 35,
+      "type": "delta",
+      "data": {
+        "content": "抵消，剩下 −"
+      }
+    },
+    {
+      "offset": 36,
+      "type": "delta",
+      "data": {
+        "content": "b/a；两根"
+      }
+    },
+    {
+      "offset": 37,
+      "type": "delta",
+      "data": {
+        "content": "相"
+      }
+    },
+    {
+      "offset": 38,
+      "type": "delta",
+      "data": {
+        "content": "乘时用平方差"
+      }
+    },
+    {
+      "offset": 39,
+      "type": "delta",
+      "data": {
+        "content": "，"
+      }
+    },
+    {
+      "offset": 40,
+      "type": "delta",
+      "data": {
+        "content": "得到 c/a。"
+      }
+    },
+    {
+      "offset": 41,
+      "type": "delta",
+      "data": {
+        "content": "\n-"
+      }
+    },
+    {
+      "offset": 42,
+      "type": "delta",
+      "data": {
+        "content": " 好处是**"
+      }
+    },
+    {
+      "offset": 43,
+      "type": "delta",
+      "data": {
+        "content": "不用真的把根"
+      }
+    },
+    {
+      "offset": 44,
+      "type": "delta",
+      "data": {
+        "content": "解出来**，"
+      }
+    },
+    {
+      "offset": 45,
+      "type": "delta",
+      "data": {
+        "content": "就能知道和与"
+      }
+    },
+    {
+      "offset": 46,
+      "type": "delta",
+      "data": {
+        "content": "积；反过来，"
+      }
+    },
+    {
+      "offset": 47,
+      "type": "delta",
+      "data": {
+        "content": "已知"
+      }
+    },
+    {
+      "offset": 48,
+      "type": "delta",
+      "data": {
+        "content": "一根也能求另一"
+      }
+    },
+    {
+      "offset": 49,
+      "type": "delta",
+      "data": {
+        "content": "根，还能\""
+      }
+    },
+    {
+      "offset": 50,
+      "type": "delta",
+      "data": {
+        "content": "由和与积"
+      }
+    },
+    {
+      "offset": 51,
+      "type": "delta",
+      "data": {
+        "content": "构造"
+      }
+    },
+    {
+      "offset": 52,
+      "type": "delta",
+      "data": {
+        "content": "方程\"：x"
+      }
+    },
+    {
+      "offset": 53,
+      "type": "delta",
+      "data": {
+        "content": "² −"
+      }
+    },
+    {
+      "offset": 54,
+      "type": "delta",
+      "data": {
+        "content": " (和)x +"
+      }
+    },
+    {
+      "offset": 55,
+      "type": "delta",
+      "data": {
+        "content": " ("
+      }
+    },
+    {
+      "offset": 56,
+      "type": "delta",
+      "data": {
+        "content": "积) = "
+      }
+    },
+    {
+      "offset": 57,
+      "type": "delta",
+      "data": {
+        "content": "0。"
+      }
+    },
+    {
+      "offset": 58,
+      "type": "delta",
+      "data": {
+        "content": "\n\n**用 x"
+      }
+    },
+    {
+      "offset": 59,
+      "type": "delta",
+      "data": {
+        "content": "² − 5"
+      }
+    },
+    {
+      "offset": 60,
+      "type": "delta",
+      "data": {
+        "content": "x +"
+      }
+    },
+    {
+      "offset": 61,
+      "type": "delta",
+      "data": {
+        "content": " 6 = "
+      }
+    },
+    {
+      "offset": 62,
+      "type": "delta",
+      "data": {
+        "content": "0"
+      }
+    },
+    {
+      "offset": 63,
+      "type": "delta",
+      "data": {
+        "content": " 演示**\n"
+      }
+    },
+    {
+      "offset": 64,
+      "type": "delta",
+      "data": {
+        "content": "这里 a = "
+      }
+    },
+    {
+      "offset": 65,
+      "type": "delta",
+      "data": {
+        "content": "1，b"
+      }
+    },
+    {
+      "offset": 66,
+      "type": "delta",
+      "data": {
+        "content": " = −5，"
+      }
+    },
+    {
+      "offset": 67,
+      "type": "delta",
+      "data": {
+        "content": "c = 6"
+      }
+    },
+    {
+      "offset": 68,
+      "type": "delta",
+      "data": {
+        "content": "。\n- x"
+      }
+    },
+    {
+      "offset": 69,
+      "type": "delta",
+      "data": {
+        "content": "₁ + x₂"
+      }
+    },
+    {
+      "offset": 70,
+      "type": "delta",
+      "data": {
+        "content": " = −b/a"
+      }
+    },
+    {
+      "offset": 71,
+      "type": "delta",
+      "data": {
+        "content": " = −("
+      }
+    },
+    {
+      "offset": 72,
+      "type": "delta",
+      "data": {
+        "content": "−5)/1"
+      }
+    },
+    {
+      "offset": 73,
+      "type": "delta",
+      "data": {
+        "content": " = **"
+      }
+    },
+    {
+      "offset": 74,
+      "type": "delta",
+      "data": {
+        "content": "5**\n-"
+      }
+    },
+    {
+      "offset": 75,
+      "type": "delta",
+      "data": {
+        "content": " x"
+      }
+    },
+    {
+      "offset": 76,
+      "type": "delta",
+      "data": {
+        "content": "₁ · x₂"
+      }
+    },
+    {
+      "offset": 77,
+      "type": "delta",
+      "data": {
+        "content": " = c/a ="
+      }
+    },
+    {
+      "offset": 78,
+      "type": "delta",
+      "data": {
+        "content": " "
+      }
+    },
+    {
+      "offset": 79,
+      "type": "delta",
+      "data": {
+        "content": "6/1 ="
+      }
+    },
+    {
+      "offset": 80,
+      "type": "delta",
+      "data": {
+        "content": " **6**\n"
+      }
+    },
+    {
+      "offset": 81,
+      "type": "delta",
+      "data": {
+        "content": "- 验证："
+      }
+    },
+    {
+      "offset": 82,
+      "type": "delta",
+      "data": {
+        "content": "解"
+      }
+    },
+    {
+      "offset": 83,
+      "type": "delta",
+      "data": {
+        "content": "出根是 "
+      }
+    },
+    {
+      "offset": 84,
+      "type": "delta",
+      "data": {
+        "content": "2"
+      }
+    },
+    {
+      "offset": 85,
+      "type": "delta",
+      "data": {
+        "content": " 和 3"
+      }
+    },
+    {
+      "offset": 86,
+      "type": "delta",
+      "data": {
+        "content": "，2+3"
+      }
+    },
+    {
+      "offset": 87,
+      "type": "delta",
+      "data": {
+        "content": "=5，2"
+      }
+    },
+    {
+      "offset": 88,
+      "type": "delta",
+      "data": {
+        "content": "×3="
+      }
+    },
+    {
+      "offset": 89,
+      "type": "delta",
+      "data": {
+        "content": "6 ✅\n\n"
+      }
+    },
+    {
+      "offset": 90,
+      "type": "delta",
+      "data": {
+        "content": "⚠️ "
+      }
+    },
+    {
+      "offset": 91,
+      "type": "delta",
+      "data": {
+        "content": "常见错误"
+      }
+    },
+    {
+      "offset": 92,
+      "type": "delta",
+      "data": {
+        "content": "：忘记 b "
+      }
+    },
+    {
+      "offset": 93,
+      "type": "delta",
+      "data": {
+        "content": "自带的"
+      }
+    },
+    {
+      "offset": 94,
+      "type": "delta",
+      "data": {
+        "content": "负号，把"
+      }
+    },
+    {
+      "offset": 95,
+      "type": "delta",
+      "data": {
+        "content": " −b/a "
+      }
+    },
+    {
+      "offset": 96,
+      "type": "delta",
+      "data": {
+        "content": "直接"
+      }
+    },
+    {
+      "offset": 97,
+      "type": "delta",
+      "data": {
+        "content": "写成 b/a；"
+      }
+    },
+    {
+      "offset": 98,
+      "type": "delta",
+      "data": {
+        "content": "使用时"
+      }
+    },
+    {
+      "offset": 99,
+      "type": "delta",
+      "data": {
+        "content": "一定要先把方程化成"
+      }
+    },
+    {
+      "offset": 100,
+      "type": "delta",
+      "data": {
+        "content": "一般"
+      }
+    },
+    {
+      "offset": 101,
+      "type": "delta",
+      "data": {
+        "content": "式，再取"
+      }
+    },
+    {
+      "offset": 102,
+      "type": "delta",
+      "data": {
+        "content": " a、b、"
+      }
+    },
+    {
+      "offset": 103,
+      "type": "delta",
+      "data": {
+        "content": "c。\n\n---"
+      }
+    },
+    {
+      "offset": 104,
+      "type": "delta",
+      "data": {
+        "content": "\n\n来练一道"
+      }
+    },
+    {
+      "offset": 105,
+      "type": "delta",
+      "data": {
+        "content": "："
+      }
+    },
+    {
+      "offset": 106,
+      "type": "delta",
+      "data": {
+        "content": "\n\n"
+      }
+    },
+    {
+      "offset": 107,
+      "type": "tool",
+      "data": {
+        "name": "ask_question",
+        "arguments": {
+          "question_id": "q-vieta-01",
+          "question_text": "方程 x²−5x+6=0 的两根之和与两根之积分别是多少？（提示：直接用韦达定理，不解方程）"
+        },
+        "was_allowed": true
+      }
+    },
+    {
+      "offset": 108,
+      "type": "delta",
+      "data": {
+        "content": "请写出你的答案"
+      }
+    },
+    {
+      "offset": 109,
+      "type": "delta",
+      "data": {
+        "content": "（"
+      }
+    },
+    {
+      "offset": 110,
+      "type": "delta",
+      "data": {
+        "content": "两根之和 = ?"
+      }
+    },
+    {
+      "offset": 111,
+      "type": "delta",
+      "data": {
+        "content": "，两根之积"
+      }
+    },
+    {
+      "offset": 112,
+      "type": "delta",
+      "data": {
+        "content": " = ?），"
+      }
+    },
+    {
+      "offset": 113,
+      "type": "delta",
+      "data": {
+        "content": "我来帮你判定。"
+      }
+    },
+    {
+      "offset": 114,
+      "type": "done",
+      "data": {
+        "turn_id": "d9de7f956d0b4c6082c8c18e56c372c3",
+        "status": "completed"
+      }
+    }
+  ]
+}

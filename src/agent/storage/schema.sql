@@ -115,7 +115,7 @@ CREATE TABLE IF NOT EXISTS turn_context (
     turn_id    TEXT NOT NULL REFERENCES turns(id),
     snippet_id TEXT NOT NULL,
     source     TEXT NOT NULL CHECK (source IN ('preselected','tool')),
-    PRIMARY KEY (turn_id, snippet_id)
+    PRIMARY KEY (turn_id, snippet_id, source)
 );
 
 CREATE TABLE IF NOT EXISTS learning_state (
