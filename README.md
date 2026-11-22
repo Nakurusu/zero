@@ -23,7 +23,7 @@ flowchart TB
 
     subgraph S2["② 策略选择"]
         direction LR
-        PLAN["strategy.plan<br/>池内选择与组装"]
+        PLAN["Planner<br/>池内选择与组装"]
         FB{"plan 异常?"}
         DEF["回退 default（explain-first）"]
         PLAN --> FB
@@ -32,7 +32,7 @@ flowchart TB
 
     subgraph S3["③ 模型与工具调用"]
         direction LR
-        MODEL["执行器驱动模型调用<br/>qwen3.8-flash 流式"]
+        MODEL["执行器：调用模型<br/>流式生成"]
         TOOL["工具执行"]
         MODEL -->|tool_call| TOOL
         TOOL -->|结果回填| MODEL
