@@ -66,7 +66,7 @@ class Settings:
             return int(e(name, default))
 
         return cls(
-            api_key=e("QWEN_API_KEY", ""),
+            api_key=e("API_KEY", ""),
             base_url=e("AGENT_BASE_URL", cls.base_url),
             model_params=ModelParams(
                 model=e("AGENT_MODEL", "qwen3.8-flash"),

@@ -836,7 +836,7 @@ PG 真实角色（不止写吞吐）：MVCC 并发写去单写者天花板 + **�
 心跳 1s/TTL 5s（测试缩短）、drain 10s、抢槽 poll 150ms/超时 30s→409、刷盘节流 500ms、窗口 3000 token+20 轮兜底、预选≤3、工具循环上限 8、gunicorn workers=2/graceful_timeout 90s/max_requests 关/不 preload。估算器=字符启发式（CJK≈1 token/字、其余≈4 字符/token）版本固定；实际计量以 API usage 为准。种子主题=初中数学·一元二次方程，题库+材料片段含答案键。
 
 ### 模型/端点与命名更新（2026-11-22，用户指令，覆盖 D-model 对应子项）
-- 模型 **qwen3.8-flash**、端点 **https://maas.qianwenaiapi.com/compatible-mode/v1**（OpenAI 兼容协议与适配器设计不变）；密钥 env **QWEN_API_KEY**（端点非 DashScope，弃 DASHSCOPE_API_KEY 名）。
+- 模型 **qwen3.8-flash**、端点 **https://maas.qianwenaiapi.com/compatible-mode/v1**（OpenAI 兼容协议与适配器设计不变）；密钥 env **API_KEY**（用户指定唯一名，弃 DASHSCOPE_API_KEY/QWEN_API_KEY）。
 - 代码命名不带 zero：包名 `agent`、env 前缀 `AGENT_`、默认 DB `data/agent.db`；仓库名 Zero 保留。
 
 ### 工程环境
