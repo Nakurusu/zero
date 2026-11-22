@@ -12,6 +12,7 @@
 ```mermaid
 flowchart TB
     Client["客户端"]
+    SLOT["并发闸 TurnSlot<br/>抢槽 / 幂等 / 409"]
 
     subgraph S1["① 上下文构建"]
         direction LR
@@ -31,7 +32,7 @@ flowchart TB
 
     subgraph S3["③ 模型与工具调用"]
         direction LR
-        MODEL["模型调用<br/>qwen3.8-flash 流式"]
+        MODEL["执行器驱动模型调用<br/>qwen3.8-flash 流式"]
         TOOL["工具执行"]
         MODEL -->|tool_call| TOOL
         TOOL -->|结果回填| MODEL
@@ -47,14 +48,15 @@ flowchart TB
         DB[("SQLite WAL")]
     end
 
-    Client -->|HTTP| LOAD
-    POOL -->|TurnPlan| PLAN
-    FB -->|TurnPlan| MODEL
+    Client -->|HTTP| SLOT
+    SLOT --> LOAD
+    POOL -->|PlanInput| PLAN
+    FB -->|否 · TurnPlan| MODEL
     DEF -->|TurnPlan| MODEL
     MODEL -->|增量| CH
     SSE -->|SSE| Client
     LOAD -. 读 .-> DB
-    MODEL -. 写 .-> DB
+    MODEL -. fenced 写 .-> DB
 ```
 
 **图注**

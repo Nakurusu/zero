@@ -4,7 +4,7 @@
 > 初期部署：单机 gunicorn + UvicornWorker 多进程、SQLite(WAL)。标注「设计」的能力不在 Q2 构建范围（Q2 = 可运行实现集）。
 
 **1. 模块划分与执行流程**
-模块与接口：HTTP API(FastAPI)；并发闸 TurnSlot(`acquire/release`)；策略子系统 Config/Registry/Planner(`plan(PlanInput)→TurnPlan`)/ContextBuilder/Fallback；执行器 TurnRunner(`submit(turn_id,plan)`)+ModelClient(`stream_chat`)+ToolRegistry；流式 DeltaChannel(`publish/subscribe`)；持久化 Repositories+SQLite；恢复 Recovery(`reclaim_orphans`)。**主干单向**：API→并发闸→策略→执行器→(模型/工具/流式/持久化)；查询路径 API→Repo 直读、不经执行器。**策略是纯规划器**（无 IO/时钟/随机/env），只产出 TurnPlan；执行器统一跑循环、流式、持久化。
+模块与接口：HTTP API(FastAPI)；并发闸 TurnSlot(`claim`，终态隐式释放槽)；策略子系统 Config/Registry/Planner(`plan(PlanInput)→TurnPlan`)/ContextBuilder/Fallback；执行器 TurnRunner(`run_turn`+任务注册表)+ModelClient(`stream_chat`)+ToolRegistry；流式 DeltaChannel(`publish/subscribe`，offset 回放)；持久化 Repositories+SQLite（fenced 写）；恢复 Recovery(`reclaim_now`+心跳/周期 reaper)。**主干单向**：API→并发闸→策略→执行器→(模型/工具/流式/持久化)；查询路径 API→Repo 直读、不经执行器。**策略是纯规划器**（无 IO/时钟/随机/env），只产出 TurnPlan；执行器统一跑循环、流式、持久化。
 一次请求依次经过五站：① 上下文构建（executor 装载候选）→ ② 策略选择（plan 在池内选上下文/指令/工具）→ ③ 模型与工具调用（模型↔工具循环）→ ④ 数据持久化（占位/部分/最终/审计）→ ⑤ 流式响应（增量→SSE）。流程：抢槽短事务(user msg+assistant 占位+seq)→解析 planned→plan→[异常回退 default]→模型↔工具→增量 SSE→刷部分/最终+审计→终态释放槽。
 
 **2. 数据与状态管理**
@@ -14,11 +14,11 @@
 **3. 并发与故障处理**
 并发：每对话**整轮串行**，running 槽部分唯一索引；**先抢槽再落库 user msg**→seq 顺序=执行顺序→成对有序不交错(T3)；跨进程 WAL+busy_timeout 保证原子；等待 poll+超时 **409(conversation_busy, Retry-After)**。**幂等先于等待**：同 `client_msg_id` 先查已有 turn 直接返回，不排队（否则重试会等自己）。重试分两种：传输层（同 id→返回原 turn）与业务层（新 turn+`parent_turn_id`，禁终态复活）。
 断线：**后台继续(A)**，断连不取消、跑完 completed；显式 cancel→`cancel_requested`→owner 中止→interrupted(user_cancel)；模型失败→failed+error_code。
-**多进程限制（如实披露）**：生成在 owning worker 内存，重连若落到其他 worker 只能 `GET` 轮询、拿不到实时增量；resume-stream/跨 worker 推送为 P2，演进 2A→2B/2C→2E。
-重启：**instance UUID+心跳新鲜度**回收 stale-owner running→interrupted（保留 partial），区分全量/滚动、不误杀兄弟，回收延迟≤心跳 TTL；drain 停接收后限时跑完，超出标 interrupted。
+**多进程限制（如实披露）**：生成在 owning worker 内存，跨 worker 重连无实时增量；幂等重试落到他 worker 走 **DB 轮询流**（2A 最小落地），实时推送演进 2B/2C→2E。
+重启：**instance UUID+心跳新鲜度**回收 stale-owner running→interrupted（保留 partial），区分全量/滚动、不误杀兄弟，回收延迟≤心跳 TTL；drain 停接收后限时跑完，超出标 interrupted。回收时 **fence_token+1**，stale-owner 后续写入（终态/刷盘/审计）经条件写（`status='running' AND owner AND fence`）全部落空→**fencing 防复活**，执行器 0 行命中即中止。
 
 **4. 策略扩展与实验管理**
-接口：`plan(PlanInput)→TurnPlan`（instructions/context 引用/allowed_tools/plan_schema_version）；纯规划、不调模型不写库。新增策略=实现接口+注册一行(name→version→factory)+配置引用（默认/对话）+可选注册新工具；**不改存储/HTTP/执行器**。回退：仅 plan 构建阶段异常→default(explain-first)+fallback_reason 枚举；default 失败→failed+信号+保留 user msg；执行器失败不回退。回滚：旧版本保留注册，改配置指旧版本、无需发版（plan_schema_version 兼容校验）。
+接口：`plan(PlanInput)→TurnPlan`（instructions/context 引用/allowed_tools/plan_schema_version）；纯规划、不调模型不写库。新增策略=实现接口+注册一行(name→version→factory)+配置引用（默认/对话）+可选注册新工具；**不改存储/HTTP/执行器**。回退：仅 plan 构建阶段异常→default(explain-first)+fallback_reason 枚举；default 失败→failed+信号+保留 user msg；执行器失败不回退。回滚：旧版本保留注册，改配置指旧版本、无需发版（plan_schema_version 兼容校验）。**可检验行为做成工具**（ask_question/provide_explanation/judge_answer）：策略指令引导模型调用，行为成为结构化 tool_call 记录，评估检查断言数据库而非自由文本启发式（D8.4）。
 分配：Config 模块决定并写入 conversations；Q2 = 按对话显式配置（**Assignment 模块仅设计 P2**）。稳定分组：`sha256(experiment_id:conversation_id) % 100` 分桶、创建时写库，同一对话恒同桶。**planned/actual 都落审计**；效果分析按 **actual_strategy** 分组并报告 fallback_rate，避免回退稀释对照臂。
 
 **5. 删除与系统演进**
