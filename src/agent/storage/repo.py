@@ -321,7 +321,8 @@ class Repo:
         assert status in ("completed", "failed", "interrupted")
         self.con.execute("BEGIN IMMEDIATE")
         cur = self.con.execute(
-            "UPDATE turns SET status=?, finished_at=?, error_code=?, interrupt_reason=?, fallback_reason=? "
+            "UPDATE turns SET status=?, finished_at=?, error_code=?, interrupt_reason=?, "
+            "fallback_reason=COALESCE(?, fallback_reason) "
             "WHERE id=? AND status='running' AND owner_instance=? AND fence_token=?",
             (status, now_iso(), error_code, interrupt_reason, fallback_reason, turn_id, owner, fence),
         )

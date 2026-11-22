@@ -185,6 +185,15 @@ def test_slot_wait_timeout_and_acquire(db_path):
     rb.close()
 
 
+def test_finalize_preserves_fallback_reason(repo):
+    t = repo.try_claim("c-demo", "问", "inst-A", "faulty", 1)["turn"]
+    assert repo.write_plan(t["id"], "inst-A", 0, actual_strategy="explain-first", actual_version=1,
+                           fallback_reason="strategy_plan_error", plan_doc={}, plan_schema_version=1,
+                           context_builder_version="cb-v1", preselected_snippets=[])
+    assert repo.finalize_turn(t["id"], "inst-A", 0, status="completed", content="回复")
+    assert repo.get_turn(t["id"])["fallback_reason"] == "strategy_plan_error"
+
+
 def test_recovery_owner_aware(repo):
     repo.heartbeat("inst-A")
     cid2 = repo.create_conversation("t-quadratic", "u-demo", "explain-first", 1)["id"]
