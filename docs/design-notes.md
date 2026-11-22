@@ -1,6 +1,6 @@
 # Zero 设计说明（题目一 1–5 问）
 
-> ≤1 页。架构图见 [README](../README.md)，决策依据见 [decisions.md](decisions.md)（D0–D8）。
+> ≤1 页。架构图见 [README](../README.md)（离线图：[PNG](architecture.png) / [SVG](architecture.svg)，源码 [architecture.mmd](architecture.mmd)），决策依据见 [decisions.md](decisions.md)（D0–D8）。
 > 初期部署：单机 gunicorn + UvicornWorker 多进程、SQLite(WAL)。标注「设计」的能力不在 Q2 构建范围（Q2 = 可运行实现集）。
 
 **1. 模块划分与执行流程**
