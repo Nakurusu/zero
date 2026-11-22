@@ -9,53 +9,9 @@
 
 ## 架构图（题目一）
 
-```mermaid
-flowchart TB
-    Client["客户端"]
+![架构图](docs/architecture.png)
 
-    subgraph S1["① 上下文构建"]
-        direction LR
-        LOAD["装载候选（executor）<br/>会话历史 / 学习状态 / 材料候选"]
-        POOL["候选池"]
-        LOAD --> POOL
-    end
-
-    subgraph S2["② 策略选择"]
-        direction LR
-        PLAN["strategy.plan<br/>池内选择与组装"]
-        FB{"plan 异常?"}
-        DEF["回退 default（explain-first）"]
-        PLAN --> FB
-        FB -->|是| DEF
-    end
-
-    subgraph S3["③ 模型与工具调用"]
-        direction LR
-        MODEL["模型调用<br/>qwen3.8-flash 流式"]
-        TOOL["工具执行"]
-        MODEL -->|tool_call| TOOL
-        TOOL -->|结果回填| MODEL
-    end
-
-    subgraph S5["⑤ 流式响应"]
-        direction LR
-        CH["增量通道<br/>publish / subscribe"]
-        CH --> SSE["SSE 推送"]
-    end
-
-    subgraph S4["④ 数据持久化"]
-        DB[("SQLite WAL")]
-    end
-
-    Client -->|HTTP| LOAD
-    POOL -->|TurnPlan| PLAN
-    FB -->|TurnPlan| MODEL
-    DEF -->|TurnPlan| MODEL
-    MODEL -->|增量| CH
-    SSE -->|SSE| Client
-    LOAD -. 读 .-> DB
-    MODEL -. 写 .-> DB
-```
+> 图源码：[docs/architecture.mmd](docs/architecture.mmd)（唯一来源；改图后重渲染 PNG/SVG，见 docs/design-notes.md 链接）。
 
 **图注**
 
