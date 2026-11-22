@@ -210,12 +210,12 @@ PG 真实角色（不止写吞吐）：MVCC 并发写去单写者天花板 + **�
 
 **③停机/崩溃孤儿**（区分优雅停机可减 vs 崩溃只能检测恢复）：
 - 3A drain 钩子：shutdown 停接收→asyncio.wait(任务注册表,deadline)跑完提交。消优雅孤儿/服务器无关；拖慢重启、超窗仍孤儿、不解崩溃、deadline<graceful_timeout。初期就做。
-- 3B owner 感知启动恢复：只回收 owner 已死的 running（心跳/租约/pid 存活），标 failed/保留部分/释放槽。**多进程不能 naive 标所有 running（会杀兄弟活跃轮次）**。C3/T1 必需。
+- 3B owner 感知启动恢复：只回收 owner 已死的 running（心跳/租约/instance 存活），标 failed/保留部分/释放槽。**多进程不能 naive 标所有 running（会杀兄弟活跃轮次）**。C3/T1 必需。
 - 3C 租约+心跳+reaper：turn 带 owner+lease，心跳续租，原子回收过期。无需重启自动检测；心跳负载/TTL/防双收。3B 生产级。
 - 3D 可续跑：孤儿从头重发模型(用持久化 TurnPlan/快照)或带前缀续写。UX 好；浪费 token/不确定、API 普遍不支持流中途续跑、需幂等。P2。
 - 3E 持久任务队列：job 入 broker ack/重投，进程死红投。根本解③；至少一次→幂等强制、broker 运维。50× 终态(=2E)。
 
-**关键前移**：用户选 gunicorn 滚动重启 → 3B owner 感知是**初期正确性必需**（否则滚动重启杀兄弟轮次），前移进 D1：turns 带 owner_worker+存活/租约字段，恢复 owner 感知。T1 整服务重启 naive 标记恰好安全，但滚动重启必须 owner 感知。初期简化 owner_pid+kill(pid,0)+start_time 防复用；生产用 3C。
+**关键前移**：用户选 gunicorn 滚动重启 → 3B owner 感知是**初期正确性必需**（否则滚动重启杀兄弟轮次），前移进 D1：turns 带 owner_worker+存活/租约字段，恢复 owner 感知。T1 整服务重启 naive 标记恰好安全，但滚动重启必须 owner 感知。初期用 instance UUID+心跳新鲜度（D8.7）；生产用 3C。
 
 **收敛**：2E=3E 同一动作（独立生成层+持久队列），50× 终态同时解②③。根因同源：生成任务寿命绑定 web 进程内存；外置任务寿命则两后果俱消，代价幂等+设施。
 
@@ -235,7 +235,7 @@ PG 真实角色（不止写吞吐）：MVCC 并发写去单写者天花板 + **�
 | DeltaChannel | publish/subscribe(turn_id,from_offset)；InProcessChannel(asyncio.Queue) | RedisStream/PGNotify/DBPoll | executor 发增量/SSE 订阅走它，②完善换后端；offset 铺回放 |
 | Repositories | Message/Turn/Audit/LearningState Repo；SqliteRepo | PgRepo | DB 迁移局部化；纯存储测试 fake repo(T1/T3) |
 | TurnSlot/ConversationLock | acquire/release；部分唯一索引+轮询 | PG advisory lock | D3 机制 DB 无关，迁移不返工 |
-| TurnRecovery | reclaim_orphans() owner 感知；启动扫描+pid/租约 | broker 红投+租约 reaper | 恢复可换；gunicorn 滚动重启本就必需 |
+| TurnRecovery | reclaim_orphans() owner 感知；启动扫描+instance UUID/心跳 | broker 红投+租约 reaper | 恢复可换；gunicorn 滚动重启本就必需 |
 | ModelClient | stream chat+tool calls 接口；openai 兼容 | 换供应商/前置限流·缓存·队列 | D-model 可换；50× 瓶颈#1 限流缓存插此后 |
 | 配置/DI 组合根 | config 选实现，FastAPI Depends 接线 | flip config 到 queue/redis/pg | 迁移=配置+新实现 |
 
@@ -275,7 +275,7 @@ PG 真实角色（不止写吞吐）：MVCC 并发写去单写者天花板 + **�
 | 原始材料 | 原文文件（磁盘/对象存储） | — | 预置片段存 DB（material_snippets）为权威 | 对象存储 |
 | 解析/检索产物 | 派生（可由原文重建） | 分块/嵌入/索引 | 无解析，预置片段 | chunk+向量索引流水线 |
 | 消息+轮次状态 | DB（messages/turns） | 内存流缓冲瞬态（节流刷盘） | DB | PG |
-| 学习进度/答题 | DB（learning_state/answer_records） | — | DB 预置+可选更新 | 事件投影 |
+| 学习进度/答题 | DB（learning_state/answer_events） | — | DB 预置+可选更新 | 事件投影 |
 | 每轮上下文/策略/执行 | DB（turn 审计） | — | plan 引用+快照、planned/actual、model/tool calls | — |
 
 ### 子决策 4.3 上下文记录方式（已定 B：纯引用，2026-11-21）
@@ -322,7 +322,7 @@ PG 真实角色（不止写吞吐）：MVCC 并发写去单写者天花板 + **�
     - 后果：擦除延迟由 epoch 检查新鲜度界定（建议读穿透/极短 TTL）；per-user epoch 偏粗（granular 擦除过度失效该用户全部缓存，安全但性能代价，可 per-conversation epoch 细化）；epoch 自增原子+持久，先增 epoch+毁密钥再确认擦除；读路径多一次共享 epoch 读（比 KMS 便宜）；50× 多节点同样适用。
 
 ### 推荐汇总
-混合权威（状态表+追加审计）；DB 为对话/状态/审计权威；原文权威+派生可重建；上下文=纯引用（删除指向空，4.3=B）；材料=内容寻址 hash+不可变桶（4.5，调和待定）；Q2 预置=JSON 种子→DB；演进=对象存储+向量索引。
+混合权威（状态表+追加审计）；DB 为对话/状态/审计权威；原文权威+派生可重建；上下文=纯引用（删除指向空，4.3=B）；材料=内容寻址 hash+不可变桶（4.5，已定：加密粉碎）；Q2 预置=JSON 种子→DB；演进=对象存储+向量索引。
 
 ### 选定方案（已决策 2026-11-21）
 - 4.1 权威模型：**C 混合 + append-only 分层（乙）**——audit/materials/answer_events append-only；messages/turns/learning_state 可变状态表；全量 append-only 作演进。界定适用范围，非工期妥协。
@@ -340,7 +340,7 @@ PG 真实角色（不止写吞吐）：MVCC 并发写去单写者天花板 + **�
 - 4.5 仅清本进程缓存：多 worker/节点擦除不即时→弃，per-user key_epoch 全集群收敛失效。
 
 ### 对下游的影响
-- D1：状态表 schema（messages/turns/learning_state/answer_records/audit）+ owner/租约字段。
+- D1：状态表 schema（messages/turns/learning_state/answer_events/audit）+ owner/租约字段。
 - D3：锁基底=DB 状态表。
 - D7：上下文构建器输出引用+快照（4.3）。
 - D8：审计=追加只读记录，评估直读。
@@ -365,7 +365,7 @@ PG 真实角色（不止写吞吐）：MVCC 并发写去单写者天花板 + **�
 - learning_state（可变）/ answer_events（append-only）
 - material_snippets(id=HMAC, topic_id, content)（append-only insert-or-ignore）
 - metadata(seed_manifest_hash, schema_version)
-- worker_liveness(worker_id, pid, start_time, last_heartbeat) + running-slot 协调（D3）
+- worker_liveness(instance_uuid, last_heartbeat) + running-slot 协调（D3）
 
 ### 子决策 1.2 轮次状态机（已定 2026-11-21）
 - Q2 实际流转：**running → completed / failed / interrupted**（三者皆终态）。
@@ -533,11 +533,11 @@ PG 真实角色（不止写吞吐）：MVCC 并发写去单写者天花板 + **�
 - OpenAI 兼容覆盖最广（DashScope/DeepSeek/Moonshot 走 openai SDK+base_url）。
 - **已定（2026-11-21）：DashScope Qwen + OpenAI 兼容端点**（用户密钥为 qwen）。
   - SDK：openai SDK，base_url=https://dashscope.aliyuncs.com/compatible-mode/v1；密钥 env DASHSCOPE_API_KEY（H3 不入库）。
-  - 工具调用：OpenAI tools/function calling（qwen-plus/max 支持）；流式 SSE delta.content/delta.tool_calls。
+  - 工具调用：OpenAI tools/function calling（qwen3.8-max 支持）；流式 SSE delta.content/delta.tool_calls。
   - token：usage.prompt_tokens/completion_tokens；**流式需 stream_options={include_usage:true} 才返 usage**（E3 计量关键）。
   - 适配器：OpenAICompatAdapter（ModelClient seam 实现），executor 消费归一事件。
-- **模型标识+params：暂不固定（用户开发后手动调），预留预设值**（placeholder：model=qwen-plus、temperature=0.7、max_tokens=2048、top_p=0.9），经 env/config 配置。
-- **E2 一致性仍在运行期保证**：评估 harness 读单一 model+params 配置源，对两策略/两次跑施加同一配置，并随 run 记录模型标识+params（可追溯）。设计期不固定值≠违反 E2；E2 要求运行期一致，由单配置源+记录强制。模型须支持 tools（qwen-plus/max）。
+- **模型标识+params：固定预设值，可经 env/config 覆盖**（model=qwen3.8-max、temperature=0.7、max_tokens=2048、top_p=0.9）。
+- **E2 一致性仍在运行期保证**：评估 harness 读单一 model+params 配置源，对两策略/两次跑施加同一配置，并随 run 记录模型标识+params（可追溯）。E2 要求运行期一致，由单配置源+记录强制。模型须支持 tools（qwen3.8-max 支持 function calling）。
 
 ### 子决策 m.2 ModelClient 接口归一（推荐）
 - 接口 stream_chat(messages, tools, params) -> AsyncIterator[Delta|ToolCall|Usage]；归一不同供应商 chunk/tool/usage 格式。
@@ -548,7 +548,7 @@ PG 真实角色（不止写吞吐）：MVCC 并发写去单写者天花板 + **�
 - 预置材料片段查询工具；模型发起 tool call→执行→结果回传→继续生成；适配器翻译供应商 tool 协议。
 
 ### 选定方案（已决策 2026-11-21）
-- m.1 DashScope Qwen + OpenAI 兼容端点（OpenAICompatAdapter，base_url compatible-mode/v1，DASHSCOPE_API_KEY）；模型标识+params 预留预设值（qwen-plus/0.7/2048/0.9 placeholder），用户开发后手动调；流式 include_usage 取 token。
+- m.1 DashScope Qwen + OpenAI 兼容端点（OpenAICompatAdapter，base_url compatible-mode/v1，DASHSCOPE_API_KEY）；模型标识+params 预设 qwen3.8-max/0.7/2048/0.9，可经配置覆盖；流式 include_usage 取 token。
 - m.2 ModelClient seam 归一事件；评估单配置源 + 随 run 记录（E2 运行期一致）。
 - m.3 OpenAI tools 协议；预置材料片段查询工具，真实 tool call 循环。
 
@@ -803,6 +803,48 @@ PG 真实角色（不止写吞吐）：MVCC 并发写去单写者天花板 + **�
 ### 对下游的影响
 - 执行器按引用渲染 prompt；评估同 context_builder_version+同候选池（E2）。
 - B8 长对话/大材料设计答案由 7.2/7.3/7.6 演进支撑。
+
+---
+
+## 实现细化（2026-11-22，Q2 开工，用户拍板）
+
+> P1–P6 全部采纳 + 三项修正。本节是 D0–D8 的实现粒度补充，不改变上游决策。
+
+### 采纳的实现小项
+- **P1 judge_answer=预设答案键**：种子含题库（questions：id/prompt/expected/acceptable/knowledge_point），工具规范化比对→确定可测；模型自判（检查与被检行为同源）弃。
+- **P2 最小 API 扩展**：POST /conversations（建会话+指定策略）、PATCH …/strategy（切换）、GET …/turns/{id}（审计详情）。E2 独立会话/T4 切换/B7 审计可读的前提。
+- **P3 eval=HTTP 驱动真实服务**：全栈证据（SSE/并发闸/幂等）；in-process 绕过 HTTP 层弃。
+- **P4（被修正 1 覆盖）**：T1 改真重启（见下）；T3 仍存储层（题目允许两进程/两连接）。
+- **P5 T5=固定小用例集两跑**（pytest 真实 API）；完整 3–5 用例两跑作交付归档（E6 本体）。
+- **P6 省略 turns.lease_expires_at**：恢复统一走 worker_liveness 心跳新鲜度单权威（D8.7），避免 turn 级 lease 双权威同步；D1.1 字段列表据此收窄。
+
+### 修正 1：T1 真重启测试
+- pytest 管理真实服务子进程（uvicorn+临时 DB+真实 API）：①completed 轮次 kill→重启→GET 历史/状态正确；②running 轮次流式中途 kill→重启→心跳 TTL 过后回收 interrupted(process_restart)、partial 保留、槽释放。
+- 后果：T1 计入真实 API 测试组（需密钥+进程管理 fixture）；存储层仍保留 fencing/回收机制单测（快、无 API）。
+
+### 修正 2：评估状态隔离
+- **每 run 独立 DB 文件 + 独立服务实例**；run 内**两策略臂独立用户**（预置 learning_state 完全相同）。
+- 动机：learning_state 按 user+topic 权威（G4），同用户跨臂/跨 run 会经 answer_events/状态更新相互污染→E2/E6 失效。
+- 后果：harness 管理服务生命周期（起停+种子）；eval_runs 行在各自 DB；两 run seed_manifest_hash 相同证同种子；对比表读导出记录而非共享库。materials 不可变种子共享无碍。
+
+### 修正 3：回收后写入 fencing
+- turns 加 **fence_token**（claim=0；回收 UPDATE 时 +1）。执行器**所有**写路径（终态、部分刷盘、model/tool 审计 append）带条件 `status='running' AND owner_instance=me AND fence_token=claim值`；0 行命中→所有权丢失→中止生成+发 interrupted(reclaimed) 信号，不再写任何行。
+- 动机：stale owner（心跳延迟/暂停后复活）在回收后落最终结果→复活已 interrupted 轮次/污染审计。仅终态守卫在 Q2 状态机下已够，但显式 token 为 2E 重投（轮次合法回 running 换 owner）预留正确性，且使所有权语义显式可测。
+- 后果：写路径多一列条件+0 行检测分支；存储层 fencing 单测（回收后 stale 写被拒）。
+
+### 默认参数（生效，可 env 覆盖）
+心跳 1s/TTL 5s（测试缩短）、drain 10s、抢槽 poll 150ms/超时 30s→409、刷盘节流 500ms、窗口 3000 token+20 轮兜底、预选≤3、工具循环上限 8、gunicorn workers=2/graceful_timeout 90s/max_requests 关/不 preload。估算器=字符启发式（CJK≈1 token/字、其余≈4 字符/token）版本固定；实际计量以 API usage 为准。种子主题=初中数学·一元二次方程，题库+材料片段含答案键。
+
+### 模型/端点与命名更新（2026-11-22，用户指令，覆盖 D-model 对应子项）
+- 模型 **qwen3.8-flash**、端点 **https://maas.qianwenaiapi.com/compatible-mode/v1**（OpenAI 兼容协议与适配器设计不变）；密钥 env **API_KEY**（用户指定唯一名，弃 DASHSCOPE_API_KEY/QWEN_API_KEY）。
+- 代码命名不带 zero：包名 `agent`、env 前缀 `AGENT_`、默认 DB `data/agent.db`；仓库名 Zero 保留。
+
+### 评估基线前调优（2026-11-22）
+- explain-first 指令显式化：答错后**必须调用 provide_explanation**、只有用户实际作答后才 judge_answer（禁自问自答）。起因：harness 验证发现模型以纯文本讲解不调行为工具、首轮自问自答→检查失败（D8.4 已接受风险的实例）。
+- 版本处理：官方两跑尚未执行，无已发布基线依赖旧指令，故保持 v1 定稿；两官方 run 使用同一最终版本（E2/E6 一致性不受影响）。此后若再改策略行为则升版本。
+
+### 工程环境
+conda 环境 `zero`（Python 3.11）；pip 装包；收尾 pip freeze 导出 requirements.txt 保复现。
 
 ---
 

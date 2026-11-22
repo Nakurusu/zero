@@ -1,0 +1,125 @@
+{
+  "seed_version": 1,
+  "users": [
+    {"id": "u-demo", "display_name": "演示用户"},
+    {"id": "u-eval-a", "display_name": "评估臂A用户"},
+    {"id": "u-eval-b", "display_name": "评估臂B用户"}
+  ],
+  "topics": [
+    {"id": "t-quadratic", "title": "一元二次方程"}
+  ],
+  "materials": [
+    {
+      "topic_id": "t-quadratic",
+      "title": "一般式与定义",
+      "content": "一元二次方程的一般形式为 ax²+bx+c=0，其中 a≠0。a 是二次项系数，b 是一次项系数，c 是常数项。判断一个方程是否为一元二次方程，必须先化为一般式并确认二次项系数不为零。",
+      "keywords": ["一般式", "定义", "二次项", "一次项", "常数项"]
+    },
+    {
+      "topic_id": "t-quadratic",
+      "title": "判别式",
+      "content": "判别式 Δ=b²−4ac 决定实数根的情况：Δ>0 时有两个不相等的实数根；Δ=0 时有两个相等的实数根；Δ<0 时没有实数根。计算时注意 −4ac 的符号：c 为负时 −4ac 为正。",
+      "keywords": ["判别式", "delta", "Δ", "根的情况", "实数根"]
+    },
+    {
+      "topic_id": "t-quadratic",
+      "title": "求根公式",
+      "content": "当 Δ≥0 时，一元二次方程 ax²+bx+c=0 的根为 x=(−b±√Δ)/(2a)。使用步骤：先算 Δ，再代入公式，注意 −b 的符号与分母 2a。例如 x²−5x+6=0 中 a=1,b=−5,c=6，Δ=1，x=(5±1)/2，得 x=3 或 x=2。",
+      "keywords": ["求根公式", "求根", "公式法"]
+    },
+    {
+      "topic_id": "t-quadratic",
+      "title": "韦达定理",
+      "content": "若 x₁、x₂ 是 ax²+bx+c=0 的两根，则 x₁+x₂=−b/a，x₁·x₂=c/a。韦达定理可在不解方程的情况下求两根之和与两根之积，也常用于已知一根求另一根或构造方程。",
+      "keywords": ["韦达", "韦达定理", "根与系数", "两根之和", "两根之积"]
+    },
+    {
+      "topic_id": "t-quadratic",
+      "title": "因式分解法",
+      "content": "若方程一边为零、另一边可分解为两个一次因式的积，则可用因式分解法：(x−p)(x−q)=0 推出 x=p 或 x=q。例如 x²−5x+6=0 分解为 (x−2)(x−3)=0，得 x=2 或 x=3。十字相乘是常用的分解技巧。",
+      "keywords": ["因式分解", "十字相乘", "分解法"]
+    },
+    {
+      "topic_id": "t-quadratic",
+      "title": "配方法",
+      "content": "配方法步骤：①移项使常数项在右边；②二次项系数化为 1；③两边同加一次项系数一半的平方；④左边写成完全平方，右边合并后开平方。例如 x²−5x=−6 → x²−5x+25/4=1/4 → (x−5/2)²=1/4。",
+      "keywords": ["配方", "配方法", "完全平方"]
+    },
+    {
+      "topic_id": "t-quadratic",
+      "title": "常见错误",
+      "content": "常见错误：①求根公式中 −b 的符号代错（b=−5 时 −b=5）；②判别式中 −4ac 的符号算错；③忽略 a≠0 的前提；④Δ<0 时仍写出实数根；⑤因式分解后漏掉一个根。检查答案时可用韦达定理验证两根之和与之积。",
+      "keywords": ["常见错误", "易错", "符号", "检查"]
+    }
+  ],
+  "questions": [
+    {
+      "id": "q-form-01",
+      "topic_id": "t-quadratic",
+      "prompt": "一元二次方程的一般形式是什么？需要满足什么条件？",
+      "expected": "ax²+bx+c=0（a≠0）",
+      "acceptable": ["ax²+bx+c=0（a≠0）", "ax^2+bx+c=0(a≠0)", "ax²+bx+c=0,a≠0", "ax2+bx+c=0(a≠0)", "ax²+bx+c=0（a不等于0）"],
+      "knowledge_point": "一般式"
+    },
+    {
+      "id": "q-disc-01",
+      "topic_id": "t-quadratic",
+      "prompt": "方程 x²−5x+6=0 的判别式 Δ=b²−4ac 的值是多少？",
+      "expected": "1",
+      "acceptable": ["1", "Δ=1", "delta=1", "判别式为1", "1.0", "δ=1"],
+      "knowledge_point": "判别式"
+    },
+    {
+      "id": "q-roots-01",
+      "topic_id": "t-quadratic",
+      "prompt": "方程 x²−5x+6=0 的两个实数根是什么？",
+      "expected": "x=2 或 x=3",
+      "acceptable": ["x=2或x=3", "2和3", "x1=2,x2=3", "x=2,x=3", "2,3", "3,2", "x₁=2,x₂=3", "x=3或x=2"],
+      "knowledge_point": "求根"
+    },
+    {
+      "id": "q-vieta-01",
+      "topic_id": "t-quadratic",
+      "prompt": "方程 x²−5x+6=0 的两根之和与两根之积分别是多少？",
+      "expected": "和为5，积为6",
+      "acceptable": ["和为5，积为6", "5和6", "和5积6", "5,6", "和=5,积=6", "两根之和为5，两根之积为6"],
+      "knowledge_point": "韦达定理"
+    },
+    {
+      "id": "q-factor-01",
+      "topic_id": "t-quadratic",
+      "prompt": "用因式分解法解 x²−5x+6=0，方程左边分解后的结果是什么？",
+      "expected": "(x-2)(x-3)=0",
+      "acceptable": ["(x-2)(x-3)=0", "(x-2)(x-3)", "(x-3)(x-2)", "(x-3)(x-2)=0"],
+      "knowledge_point": "因式分解"
+    },
+    {
+      "id": "q-noreal-01",
+      "topic_id": "t-quadratic",
+      "prompt": "方程 x²+x+1=0 有实数根吗？为什么？",
+      "expected": "没有，因为Δ=-3<0",
+      "acceptable": ["没有，因为Δ=-3<0", "没有", "无实根", "没有实数根", "Δ<0", "delta=-3<0", "没有，Δ=-3<0"],
+      "knowledge_point": "判别式与根的存在性"
+    }
+  ],
+  "learning_state": [
+    {
+      "user_id": "u-demo",
+      "topic_id": "t-quadratic",
+      "digest": {"progress": "已学习一般式、判别式与求根公式", "knowledge_points": ["一般式", "判别式", "求根公式"], "mastery": "中等", "note": "韦达定理与因式分解尚未练习"}
+    },
+    {
+      "user_id": "u-eval-a",
+      "topic_id": "t-quadratic",
+      "digest": {"progress": "已学习一般式、判别式与求根公式", "knowledge_points": ["一般式", "判别式", "求根公式"], "mastery": "中等", "note": "韦达定理与因式分解尚未练习"}
+    },
+    {
+      "user_id": "u-eval-b",
+      "topic_id": "t-quadratic",
+      "digest": {"progress": "已学习一般式、判别式与求根公式", "knowledge_points": ["一般式", "判别式", "求根公式"], "mastery": "中等", "note": "韦达定理与因式分解尚未练习"}
+    }
+  ],
+  "conversations": [
+    {"id": "c-demo", "topic_id": "t-quadratic", "user_id": "u-demo", "strategy_name": "explain-first", "strategy_version": 1}
+  ]
+}

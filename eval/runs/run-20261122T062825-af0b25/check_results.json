@@ -1,0 +1,794 @@
+[
+  {
+    "check_name": "only_allowed_tools_called",
+    "passed": 1,
+    "detail": "all allowed",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-1",
+    "turn_index": 0,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "wrong_answer_followed_by_explanation",
+    "passed": 1,
+    "detail": "vacuous: no wrong answer judged",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-1",
+    "turn_index": 0,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "explain_first_explains_before_question",
+    "passed": 1,
+    "detail": "explain_seqs=[4] ask_seqs=[6]",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-1",
+    "turn_index": 0,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "ask_question_uses_bank_id",
+    "passed": 1,
+    "detail": "question_ids=['q-disc-01']",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-1",
+    "turn_index": 0,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "only_allowed_tools_called",
+    "passed": 1,
+    "detail": "all allowed",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-1",
+    "turn_index": 1,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "wrong_answer_followed_by_explanation",
+    "passed": 0,
+    "detail": "wrong_seqs=[2] explain_seqs=[]",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-1",
+    "turn_index": 1,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "explain_first_explains_before_question",
+    "passed": 1,
+    "detail": "vacuous: explain_seqs=[] ask_seqs=[]",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-1",
+    "turn_index": 1,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "ask_question_uses_bank_id",
+    "passed": 1,
+    "detail": "vacuous: no ask_question",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-1",
+    "turn_index": 1,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "only_allowed_tools_called",
+    "passed": 1,
+    "detail": "all allowed",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-1",
+    "turn_index": 2,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "wrong_answer_followed_by_explanation",
+    "passed": 1,
+    "detail": "vacuous: no wrong answer judged",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-1",
+    "turn_index": 2,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "explain_first_explains_before_question",
+    "passed": 1,
+    "detail": "explain_seqs=[2] ask_seqs=[4]",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-1",
+    "turn_index": 2,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "ask_question_uses_bank_id",
+    "passed": 1,
+    "detail": "question_ids=['q-noreal-01']",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-1",
+    "turn_index": 2,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "only_allowed_tools_called",
+    "passed": 1,
+    "detail": "all allowed",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-2",
+    "turn_index": 0,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "wrong_answer_followed_by_explanation",
+    "passed": 1,
+    "detail": "vacuous: no wrong answer judged",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-2",
+    "turn_index": 0,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "explain_first_explains_before_question",
+    "passed": 1,
+    "detail": "vacuous: explain_seqs=[5] ask_seqs=[]",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-2",
+    "turn_index": 0,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "ask_question_uses_bank_id",
+    "passed": 1,
+    "detail": "vacuous: no ask_question",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-2",
+    "turn_index": 0,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "only_allowed_tools_called",
+    "passed": 1,
+    "detail": "all allowed",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-2",
+    "turn_index": 1,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "wrong_answer_followed_by_explanation",
+    "passed": 1,
+    "detail": "wrong_seqs=[2] explain_seqs=[4]",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-2",
+    "turn_index": 1,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "explain_first_explains_before_question",
+    "passed": 1,
+    "detail": "vacuous: explain_seqs=[4] ask_seqs=[]",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-2",
+    "turn_index": 1,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "ask_question_uses_bank_id",
+    "passed": 1,
+    "detail": "vacuous: no ask_question",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-2",
+    "turn_index": 1,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "only_allowed_tools_called",
+    "passed": 1,
+    "detail": "all allowed",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-2",
+    "turn_index": 2,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "wrong_answer_followed_by_explanation",
+    "passed": 1,
+    "detail": "vacuous: no wrong answer judged",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-2",
+    "turn_index": 2,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "explain_first_explains_before_question",
+    "passed": 1,
+    "detail": "vacuous: explain_seqs=[] ask_seqs=[]",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-2",
+    "turn_index": 2,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "ask_question_uses_bank_id",
+    "passed": 1,
+    "detail": "vacuous: no ask_question",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-2",
+    "turn_index": 2,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "only_allowed_tools_called",
+    "passed": 1,
+    "detail": "all allowed",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-3",
+    "turn_index": 0,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "wrong_answer_followed_by_explanation",
+    "passed": 1,
+    "detail": "vacuous: no wrong answer judged",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-3",
+    "turn_index": 0,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "explain_first_explains_before_question",
+    "passed": 1,
+    "detail": "vacuous: explain_seqs=[2] ask_seqs=[]",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-3",
+    "turn_index": 0,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "ask_question_uses_bank_id",
+    "passed": 1,
+    "detail": "vacuous: no ask_question",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-3",
+    "turn_index": 0,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "only_allowed_tools_called",
+    "passed": 1,
+    "detail": "all allowed",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-3",
+    "turn_index": 1,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "wrong_answer_followed_by_explanation",
+    "passed": 1,
+    "detail": "wrong_seqs=[2] explain_seqs=[4]",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-3",
+    "turn_index": 1,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "explain_first_explains_before_question",
+    "passed": 1,
+    "detail": "vacuous: explain_seqs=[4] ask_seqs=[]",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-3",
+    "turn_index": 1,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "ask_question_uses_bank_id",
+    "passed": 1,
+    "detail": "vacuous: no ask_question",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-3",
+    "turn_index": 1,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "only_allowed_tools_called",
+    "passed": 1,
+    "detail": "all allowed",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-3",
+    "turn_index": 2,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "wrong_answer_followed_by_explanation",
+    "passed": 1,
+    "detail": "vacuous: no wrong answer judged",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-3",
+    "turn_index": 2,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "explain_first_explains_before_question",
+    "passed": 1,
+    "detail": "vacuous: explain_seqs=[] ask_seqs=[]",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-3",
+    "turn_index": 2,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "ask_question_uses_bank_id",
+    "passed": 1,
+    "detail": "vacuous: no ask_question",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-3",
+    "turn_index": 2,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "only_allowed_tools_called",
+    "passed": 1,
+    "detail": "all allowed",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-4",
+    "turn_index": 0,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "wrong_answer_followed_by_explanation",
+    "passed": 1,
+    "detail": "vacuous: no wrong answer judged",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-4",
+    "turn_index": 0,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "explain_first_explains_before_question",
+    "passed": 1,
+    "detail": "explain_seqs=[2] ask_seqs=[4]",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-4",
+    "turn_index": 0,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "ask_question_uses_bank_id",
+    "passed": 1,
+    "detail": "question_ids=['q-roots-01']",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-4",
+    "turn_index": 0,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "only_allowed_tools_called",
+    "passed": 1,
+    "detail": "all allowed",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-4",
+    "turn_index": 1,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "wrong_answer_followed_by_explanation",
+    "passed": 1,
+    "detail": "vacuous: no wrong answer judged",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-4",
+    "turn_index": 1,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "explain_first_explains_before_question",
+    "passed": 1,
+    "detail": "vacuous: explain_seqs=[2] ask_seqs=[]",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-4",
+    "turn_index": 1,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "ask_question_uses_bank_id",
+    "passed": 1,
+    "detail": "vacuous: no ask_question",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-4",
+    "turn_index": 1,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "only_allowed_tools_called",
+    "passed": 1,
+    "detail": "all allowed",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-4",
+    "turn_index": 2,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "wrong_answer_followed_by_explanation",
+    "passed": 1,
+    "detail": "vacuous: no wrong answer judged",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-4",
+    "turn_index": 2,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "explain_first_explains_before_question",
+    "passed": 1,
+    "detail": "vacuous: explain_seqs=[2] ask_seqs=[]",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-4",
+    "turn_index": 2,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "ask_question_uses_bank_id",
+    "passed": 1,
+    "detail": "vacuous: no ask_question",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-4",
+    "turn_index": 2,
+    "strategy": "explain-first"
+  },
+  {
+    "check_name": "only_allowed_tools_called",
+    "passed": 1,
+    "detail": "all allowed",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-1",
+    "turn_index": 0,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "practice_first_opens_with_question",
+    "passed": 1,
+    "detail": "tools=['ask_question']",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-1",
+    "turn_index": 0,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "wrong_answer_followed_by_explanation",
+    "passed": 1,
+    "detail": "vacuous: no wrong answer judged",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-1",
+    "turn_index": 0,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "ask_question_uses_bank_id",
+    "passed": 1,
+    "detail": "question_ids=['q-disc-01']",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-1",
+    "turn_index": 0,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "only_allowed_tools_called",
+    "passed": 1,
+    "detail": "all allowed",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-1",
+    "turn_index": 1,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "wrong_answer_followed_by_explanation",
+    "passed": 1,
+    "detail": "wrong_seqs=[2] explain_seqs=[4]",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-1",
+    "turn_index": 1,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "ask_question_uses_bank_id",
+    "passed": 1,
+    "detail": "question_ids=['q-noreal-01']",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-1",
+    "turn_index": 1,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "only_allowed_tools_called",
+    "passed": 1,
+    "detail": "all allowed",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-1",
+    "turn_index": 2,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "wrong_answer_followed_by_explanation",
+    "passed": 1,
+    "detail": "vacuous: no wrong answer judged",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-1",
+    "turn_index": 2,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "ask_question_uses_bank_id",
+    "passed": 1,
+    "detail": "question_ids=['q-noreal-01']",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-1",
+    "turn_index": 2,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "only_allowed_tools_called",
+    "passed": 1,
+    "detail": "all allowed",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-2",
+    "turn_index": 0,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "practice_first_opens_with_question",
+    "passed": 1,
+    "detail": "tools=['ask_question']",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-2",
+    "turn_index": 0,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "wrong_answer_followed_by_explanation",
+    "passed": 1,
+    "detail": "vacuous: no wrong answer judged",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-2",
+    "turn_index": 0,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "ask_question_uses_bank_id",
+    "passed": 1,
+    "detail": "question_ids=['q-factor-01']",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-2",
+    "turn_index": 0,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "only_allowed_tools_called",
+    "passed": 1,
+    "detail": "all allowed",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-2",
+    "turn_index": 1,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "wrong_answer_followed_by_explanation",
+    "passed": 0,
+    "detail": "wrong_seqs=[2] explain_seqs=[]",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-2",
+    "turn_index": 1,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "ask_question_uses_bank_id",
+    "passed": 1,
+    "detail": "question_ids=['q-vieta-01']",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-2",
+    "turn_index": 1,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "only_allowed_tools_called",
+    "passed": 1,
+    "detail": "all allowed",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-2",
+    "turn_index": 2,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "wrong_answer_followed_by_explanation",
+    "passed": 1,
+    "detail": "vacuous: no wrong answer judged",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-2",
+    "turn_index": 2,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "ask_question_uses_bank_id",
+    "passed": 1,
+    "detail": "question_ids=['q-noreal-01']",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-2",
+    "turn_index": 2,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "only_allowed_tools_called",
+    "passed": 1,
+    "detail": "all allowed",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-3",
+    "turn_index": 0,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "practice_first_opens_with_question",
+    "passed": 1,
+    "detail": "tools=['ask_question']",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-3",
+    "turn_index": 0,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "wrong_answer_followed_by_explanation",
+    "passed": 1,
+    "detail": "vacuous: no wrong answer judged",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-3",
+    "turn_index": 0,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "ask_question_uses_bank_id",
+    "passed": 1,
+    "detail": "question_ids=['q-vieta-01']",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-3",
+    "turn_index": 0,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "only_allowed_tools_called",
+    "passed": 1,
+    "detail": "all allowed",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-3",
+    "turn_index": 1,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "wrong_answer_followed_by_explanation",
+    "passed": 1,
+    "detail": "wrong_seqs=[2] explain_seqs=[4]",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-3",
+    "turn_index": 1,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "ask_question_uses_bank_id",
+    "passed": 1,
+    "detail": "vacuous: no ask_question",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-3",
+    "turn_index": 1,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "only_allowed_tools_called",
+    "passed": 1,
+    "detail": "all allowed",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-3",
+    "turn_index": 2,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "wrong_answer_followed_by_explanation",
+    "passed": 1,
+    "detail": "vacuous: no wrong answer judged",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-3",
+    "turn_index": 2,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "ask_question_uses_bank_id",
+    "passed": 1,
+    "detail": "vacuous: no ask_question",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-3",
+    "turn_index": 2,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "only_allowed_tools_called",
+    "passed": 1,
+    "detail": "all allowed",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-4",
+    "turn_index": 0,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "practice_first_opens_with_question",
+    "passed": 1,
+    "detail": "tools=['ask_question']",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-4",
+    "turn_index": 0,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "wrong_answer_followed_by_explanation",
+    "passed": 1,
+    "detail": "vacuous: no wrong answer judged",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-4",
+    "turn_index": 0,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "ask_question_uses_bank_id",
+    "passed": 1,
+    "detail": "question_ids=['q-roots-01']",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-4",
+    "turn_index": 0,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "only_allowed_tools_called",
+    "passed": 1,
+    "detail": "all allowed",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-4",
+    "turn_index": 1,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "wrong_answer_followed_by_explanation",
+    "passed": 1,
+    "detail": "vacuous: no wrong answer judged",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-4",
+    "turn_index": 1,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "ask_question_uses_bank_id",
+    "passed": 1,
+    "detail": "vacuous: no ask_question",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-4",
+    "turn_index": 1,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "only_allowed_tools_called",
+    "passed": 1,
+    "detail": "all allowed",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-4",
+    "turn_index": 2,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "wrong_answer_followed_by_explanation",
+    "passed": 1,
+    "detail": "vacuous: no wrong answer judged",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-4",
+    "turn_index": 2,
+    "strategy": "practice-first"
+  },
+  {
+    "check_name": "ask_question_uses_bank_id",
+    "passed": 1,
+    "detail": "question_ids=['q-noreal-01']",
+    "run_id": "run-20261122T062825-af0b25",
+    "case_id": "case-4",
+    "turn_index": 2,
+    "strategy": "practice-first"
+  }
+]

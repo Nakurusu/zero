@@ -1,0 +1,34 @@
+{
+  "checks_version": 1,
+  "arms": [
+    {"strategy": "explain-first", "version": 1, "user": "u-eval-a"},
+    {"strategy": "practice-first", "version": 1, "user": "u-eval-b"}
+  ],
+  "checks": [
+    {
+      "name": "practice_first_opens_with_question",
+      "description": "练习优先策略首轮必须调用 ask_question 出题探测（且题目 ID 来自题库）。",
+      "scope": "practice-first turn_index=0"
+    },
+    {
+      "name": "wrong_answer_followed_by_explanation",
+      "description": "judge_answer 判定答错后，同一轮内后续必须调用 provide_explanation 讲解。",
+      "scope": "all turns（无答错判定时为空真，detail 注明）"
+    },
+    {
+      "name": "only_allowed_tools_called",
+      "description": "本轮所有工具调用都在策略允许列表内（was_allowed 全为真）。",
+      "scope": "all turns"
+    },
+    {
+      "name": "explain_first_explains_before_question",
+      "description": "讲解优先策略同轮内先 provide_explanation 后 ask_question（按 call_seq）。",
+      "scope": "explain-first turns（两者未同时出现时为空真，detail 注明）"
+    },
+    {
+      "name": "ask_question_uses_bank_id",
+      "description": "ask_question 使用的 question_id 必须命中预置题库（result_ref.valid）。",
+      "scope": "含 ask_question 的轮次（无则空真）"
+    }
+  ]
+}

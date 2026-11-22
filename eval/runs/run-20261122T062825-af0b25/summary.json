@@ -1,0 +1,115 @@
+{
+  "run_id": "run-20261122T062825-af0b25",
+  "seed_manifest_hash": "32f95818fc66a70ea89f57c24cf1afb8b35b8dc0e4b77fbc96ad50552391b654",
+  "model_id": "qwen3.8-flash",
+  "params": {
+    "model": "qwen3.8-flash",
+    "temperature": 0.7,
+    "max_tokens": 2048,
+    "top_p": 0.9
+  },
+  "base_url": "https://maas.qianwenaiapi.com/compatible-mode/v1",
+  "strategy_versions": {
+    "explain-first": 1,
+    "practice-first": 1
+  },
+  "checks_version": 1,
+  "cases_version": 1,
+  "case_ids": [
+    "case-1",
+    "case-2",
+    "case-3",
+    "case-4"
+  ],
+  "started_at": "2026-11-22T06:28:25.884+00:00",
+  "finished_at": "2026-11-22T06:33:46.801+00:00",
+  "strategies": {
+    "explain-first": {
+      "turns": 12,
+      "statuses": {
+        "completed": 12,
+        "failed": 0,
+        "interrupted": 0
+      },
+      "fallback_turns": 0,
+      "input_tokens_total": 52525,
+      "output_tokens_total": 12001,
+      "input_tokens_avg": 4377.1,
+      "output_tokens_avg": 1000.1,
+      "latency_ms_avg": 16673.8,
+      "tool_calls_total": 19,
+      "tool_calls_avg": 1.58,
+      "tool_name_counts": {
+        "ask_question": 3,
+        "judge_answer": 3,
+        "provide_explanation": 9,
+        "query_material": 4
+      },
+      "checks": {
+        "ask_question_uses_bank_id": {
+          "passed": 12,
+          "total": 12,
+          "pass_rate": 1.0
+        },
+        "explain_first_explains_before_question": {
+          "passed": 12,
+          "total": 12,
+          "pass_rate": 1.0
+        },
+        "only_allowed_tools_called": {
+          "passed": 12,
+          "total": 12,
+          "pass_rate": 1.0
+        },
+        "wrong_answer_followed_by_explanation": {
+          "passed": 11,
+          "total": 12,
+          "pass_rate": 0.917
+        }
+      }
+    },
+    "practice-first": {
+      "turns": 12,
+      "statuses": {
+        "completed": 12,
+        "failed": 0,
+        "interrupted": 0
+      },
+      "fallback_turns": 0,
+      "input_tokens_total": 35363,
+      "output_tokens_total": 6946,
+      "input_tokens_avg": 2946.9,
+      "output_tokens_avg": 578.8,
+      "latency_ms_avg": 10018.2,
+      "tool_calls_total": 15,
+      "tool_calls_avg": 1.25,
+      "tool_name_counts": {
+        "ask_question": 9,
+        "judge_answer": 4,
+        "provide_explanation": 2
+      },
+      "checks": {
+        "ask_question_uses_bank_id": {
+          "passed": 12,
+          "total": 12,
+          "pass_rate": 1.0
+        },
+        "only_allowed_tools_called": {
+          "passed": 12,
+          "total": 12,
+          "pass_rate": 1.0
+        },
+        "practice_first_opens_with_question": {
+          "passed": 4,
+          "total": 4,
+          "pass_rate": 1.0
+        },
+        "wrong_answer_followed_by_explanation": {
+          "passed": 11,
+          "total": 12,
+          "pass_rate": 0.917
+        }
+      }
+    }
+  }
+}
